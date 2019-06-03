@@ -50,7 +50,8 @@ library
     build-depends:
         plutus-tx -any,
         plutus-wallet-api -any,
-        plutus-emulator -any
+        plutus-emulator -any,
+        language-plutus-core -any
     build-depends:
         base -any,
         bytestring -any,

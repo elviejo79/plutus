@@ -10,7 +10,8 @@ module Language.PlutusTx.Coordination.Contracts.Game(
     gameDataScript,
     gameRedeemerScript,
     -- * Address
-    gameAddress
+    gameAddress,
+    validateGuessCompiled
     ) where
 
 import qualified Language.PlutusTx            as PlutusTx
@@ -35,6 +36,9 @@ correctGuess (HashedString actual) (ClearString guess') =
 
 validateGuess :: HashedString -> ClearString -> PendingTx -> Bool
 validateGuess dataScript redeemerScript _ = correctGuess dataScript redeemerScript
+
+validateGuessCompiled :: PlutusTx.CompiledCode (HashedString -> ClearString -> PendingTx -> Bool)
+validateGuessCompiled = $$(PlutusTx.compile [|| validateGuess ||])
 
 gameValidator :: ValidatorScript
 gameValidator =
