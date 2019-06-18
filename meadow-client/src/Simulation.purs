@@ -74,7 +74,7 @@ simulationPane state =
                 , ClassName "mt-5"
                 , ClassName "mb-3"
                 ]
-            ] [paneHeader "Marlowe Contract", demoScriptsPane]
+            ] [paneHeader "Marlowe Contract", codeToBlocklyButton, demoScriptsPane]
         , div
             [ onDragOver $ Just <<< action <<< MarloweHandleDragEvent
             , onDrop $ Just <<< action <<< MarloweHandleDropEvent
@@ -128,6 +128,13 @@ demoScriptButton key =
     [ classes [btn, btnInfo, btnSmall]
     , onClick $ input_ $ LoadMarloweScript key
     ] [text key]
+
+codeToBlocklyButton :: forall p. HTML p Query
+codeToBlocklyButton = 
+  button
+    [ classes [btn, btnInfo, btnSmall]
+    , onClick $ input_ $ SetBlocklyCode
+    ] [text "Code to Blockly"]
 
 compilationResultPane :: forall p. RunResult -> HTML p Query
 compilationResultPane (RunResult stdout) = div_ [code_ [pre_ [text stdout]]]
