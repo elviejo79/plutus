@@ -25,7 +25,7 @@ import           Language.Haskell.Interpreter (CompilationError (CompilationErro
 import           Playground.API               (CompilationResult (CompilationResult), Evaluation (sourceCode),
                                                Expression (Action, Wait), Fn (Fn),
                                                PlaygroundError (DecodeJsonTypeError, OtherError), program,
-                                               simulatorWalletWallet, toSimpleArgumentSchema, wallets)
+                                               simulatorWalletWallet, wallets)
 import qualified Playground.API               as API
 import           Playground.Interpreter.Util  (TraceResult)
 import           System.IO                    (Handle, hFlush)
@@ -133,14 +133,10 @@ compile timeout source
                             "It looks like you have not made any functions available, use `$(mkFunctions ['functionA, 'functionB])` to be able to use `functionA` and `functionB`" :
                         warnings
                 pure . InterpreterResult warnings' $
-                    CompilationResult
-                        [toSimpleArgumentSchema <$> schema]
-                        currencies
+                    CompilationResult [schema] currencies
             Right (schemas, currencies) ->
                 pure . InterpreterResult warnings $
-                CompilationResult
-                    (fmap toSimpleArgumentSchema <$> schemas)
-                    currencies
+                CompilationResult schemas currencies
 
 runFunction ::
        ( Show t
@@ -198,7 +194,6 @@ runghcOpts =
     , "-fno-ignore-interface-pragmas"
     , "-fobject-code"
     -- FIXME: stupid GHC bug still
-    , "-package plutus-wallet-api"
     , "-package plutus-tx"
     ]
 
