@@ -140,7 +140,7 @@ instance monadAppHalogenApp ::
 -- monad doesn't seem to help, neither does `wrap . runHalogenApp`
 saveInitialState' :: forall m. MonadEffect m => HalogenApp m Unit
 saveInitialState' = do
-  oldContract <- editorGetValue'
+  oldContract <- marloweEditorGetValue'
   modifying _oldContract
     ( \x -> case x of
       Nothing ->
@@ -152,8 +152,8 @@ saveInitialState' = do
       _ -> x
     )
 
-editorGetValue' :: forall m. MonadEffect m => HalogenApp m (Maybe String)
-editorGetValue' = withEditor AceEditor.getValue
+marloweEditorGetValue' :: forall m. MonadEffect m => HalogenApp m (Maybe String)
+marloweEditorGetValue' = withMarloweEditor AceEditor.getValue
 
 updateContractInState' :: forall m. String -> HalogenApp m Unit
 updateContractInState' contract = modifying _currentMarloweState (updateStateP <<< updateContractInStateP contract)
