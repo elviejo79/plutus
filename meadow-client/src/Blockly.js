@@ -20,6 +20,18 @@ exports.createWorkspace_ = function(blockly, workspaceDiv, toolboxDiv) {
                                                  , scrollbars : true
                                                  , sounds : true
                                                  , oneBasedIndex : true
+                                                 , zoom:
+                                                   {controls: true,
+                                                    wheel: false,
+                                                    startScale: 1.0,
+                                                    maxScale: 3,
+                                                    minScale: 0.3,
+                                                    scaleSpeed: 1.2}
+                                                 , grid:
+                                                    {spacing: 20,
+                                                     length: 3,
+                                                     colour: '#ccc',
+                                                     snap: true}
                                                  });
     blockly.svgResize(workspace);
     return workspace;

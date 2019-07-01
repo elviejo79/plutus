@@ -17,6 +17,7 @@ import Halogen.HTML.Properties (IProp, attr)
 import Record as Record
 import Simple.JSON (class WriteForeign)
 import Simple.JSON as JSON
+import Text.PrettyPrint.Leijen (align)
 
 foreign import createBlocklyInstance_ :: Effect Blockly
 
@@ -86,9 +87,11 @@ data Arg
   | Date {name :: String, date :: String}
   | Label {text :: Maybe String, class :: Maybe String}
   | Image {src :: String, width :: Number, height :: Number, alt :: String}
-  | Value {name :: String, check :: String}
+  | Value {name :: String, check :: String, align :: AlignDirection}
   | Statement {name :: String, check :: String, align :: AlignDirection}
-  | Dummy
+  | DummyRight
+  | DummyLeft
+  | DummyCentre
 
 type_ :: SProxy "type"
 type_ = SProxy
@@ -106,7 +109,9 @@ instance writeForeignArg :: WriteForeign Arg where
   writeImpl (Image fields) = JSON.write $ Record.insert type_ "field_image" fields
   writeImpl (Value fields) = JSON.write $ Record.insert type_ "input_value" fields
   writeImpl (Statement fields) = JSON.write $ Record.insert type_ "input_statement" fields
-  writeImpl Dummy = JSON.write $ {type: "input_dummy"}
+  writeImpl DummyRight = JSON.write $ {type: "input_dummy", align: Right}
+  writeImpl DummyLeft = JSON.write $ {type: "input_dummy", align: Left}
+  writeImpl DummyCentre = JSON.write $ {type: "input_dummy", align: Centre}
 
 data AlignDirection
   = Left
@@ -173,7 +178,7 @@ defaultBlockDefinition =
 xml :: forall p i. Node (id :: String, style :: String) p i
 xml props children = element (ElemName "xml") props children
 
-category :: forall p i. Node (name :: String) p i
+category :: forall p i. Node (name :: String, colour :: String) p i
 category props children = element (ElemName "category") props children
 
 block :: forall p i. Node (id :: String, type :: String, x :: String, y :: String) p i
@@ -184,6 +189,9 @@ blockType = attr (AttrName "type")
 
 style :: forall i r. String -> IProp (style :: String | r) i
 style = attr (AttrName "style")
+
+colour :: forall i r. String -> IProp (colour :: String | r) i
+colour = attr (AttrName "colour")
 
 name :: forall i r. String -> IProp (name :: String | r) i
 name = attr (AttrName "name")

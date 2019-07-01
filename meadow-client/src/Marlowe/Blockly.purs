@@ -1,7 +1,8 @@
 module Marlowe.Blockly where
 
 import Prelude
-import Blockly (AlignDirection(..), Arg(..), BlockDefinition(..), getBlockById, block, blockType, category, defaultBlockDefinition, initializeWorkspace, name, render, style, x, xml, y)
+
+import Blockly (AlignDirection(..), Arg(..), BlockDefinition(..), block, blockType, category, colour, defaultBlockDefinition, getBlockById, initializeWorkspace, name, render, style, x, xml, y)
 import Blockly.Generator (Generator, Input, clearWorkspace, compose2, connectToOutput, connectToPrevious, fieldName, fieldRow, getFieldValue, getInputWithName, inputList, inputName, insertGeneratorFunction, mkGenerator, setFieldText, statementToCode)
 import Blockly.Types (Block, BlocklyState, Workspace)
 import Control.Alternative ((<|>))
@@ -148,9 +149,9 @@ baseContract =
         { type: show BaseContractType
         , message0: "%1 CONTRACT %2 %3"
         , args0:
-          [ Dummy
+          [ DummyRight
           , Statement {name: "contract", check: "contract", align: Right}
-          , Dummy
+          , DummyRight
           ]
         , colour: "0"
         , inputsInline: Just false
@@ -171,20 +172,26 @@ commitContract =
   BlockDefinition
     $ merge
         { type: show CommitContractType
-        , message0: "Commit %1 with action id %2 and commit id %3 person with id %4 may deposit %5 ADA redeemable on block %6 or after, if money is committed before block %7 continue as %8 otherwise continue as %9"
+        , message0: "Commit %1 with action id %2 %3 and commit id %4 %5 person with id %6 %7 may deposit %8 redeemable on block %9 %10 or after, if money is committed before block %11 %12 continue as %13 otherwise continue as %14"
         , args0:
-          [ Dummy
+          [ DummyCentre
           , Number {name: "action_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
+          , DummyRight
           , Number {name: "commit_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
+          , DummyRight
           , Number {name: "person_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
-          , Value {name: "ammount", check: "value"}
+          , DummyRight
+          , Value {name: "ammount", check: "value", align: Right }
           , Number {name: "end_expiration", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
+          , DummyRight
           , Number {name: "start_expiration", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
+          , DummyRight
           , Statement {name: "contract1", check: "contract", align: Right}
           , Statement {name: "contract2", check: "contract", align: Right}
           ]
         , colour: "0"
         , previousStatement: Just "contract"
+        , inputsInline: Just false
         } defaultBlockDefinition
 
 payContract :: BlockDefinition
@@ -192,18 +199,23 @@ payContract =
   BlockDefinition
     $ merge
         { type: show PayContractType
-        , message0: "Pay with id %1 use money from commit %2 to pay person %3 the amount of %4 ADA if claimed before block %5 continue as %6 else continue as %7"
+        , message0: "Pay %1 with id %2 %3 use money from commit %4 %5 to pay person %6 %7 the amount of %8 if claimed before block %9 continue as %10 else continue as %11"
         , args0:
-          [ Number {name: "action_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
+          [ DummyCentre
+          , Number {name: "action_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
+          , DummyRight
           , Number {name: "commit_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
+          , DummyRight
           , Number {name: "payee_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
-          , Value {name: "ammount", check: "value"}
+          , DummyRight
+          , Value {name: "ammount", check: "value", align: Right}
           , Number {name: "timeout", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
           , Statement {name: "contract1", check: "contract", align: Right}
           , Statement {name: "contract2", check: "contract", align: Right}
           ]
         , colour: "0"
         , previousStatement: Just "contract"
+        , inputsInline: Just false
         } defaultBlockDefinition
 
 bothContract :: BlockDefinition
@@ -213,7 +225,7 @@ bothContract =
         { type: show BothContractType
         , message0: "Both %1 enforce both %2 and %3"
         , args0:
-          [ Dummy
+          [ DummyCentre
           , Statement {name: "contract1", check: "contract", align: Right}
           , Statement {name: "contract2", check: "contract", align: Right}
           ]
@@ -228,13 +240,14 @@ choiceContract =
         { type: show ChoiceContractType
         , message0: "Choice %1 if observation %2 then continue as %3 otherwise continue as %4"
         , args0:
-          [ Dummy
-          , Value {name: "observation", check: "observation"}
+          [ DummyCentre
+          , Value {name: "observation", check: "observation", align: Right}
           , Statement {name: "contract1", check: "contract", align: Right}
           , Statement {name: "contract2", check: "contract", align: Right}
           ]
         , colour: "0"
         , previousStatement: Just "contract"
+        , inputsInline: Just false
         } defaultBlockDefinition
 
 whenContract :: BlockDefinition
@@ -242,16 +255,16 @@ whenContract =
   BlockDefinition
     $ merge
         { type: show WhenContractType
-        , message0: "When %1 as soon as observation %2 continue as %3 if block is %4 or higher continue as %5"
+        , message0: "When observation %1 continue as %2 if block is %3 or higher continue as %4"
         , args0:
-          [ Dummy
-          , Value {name: "observation", check: "observation"}
+          [ Value {name: "observation", check: "observation", align: Right}
           , Statement {name: "contract1", check: "contract", align: Right}
           , Number {name: "timeout", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
           , Statement {name: "contract2", check: "contract", align: Right}
           ]
         , colour: "0"
         , previousStatement: Just "contract"
+        , inputsInline: Just false
         } defaultBlockDefinition
 
 whileContract :: BlockDefinition
@@ -259,16 +272,16 @@ whileContract =
   BlockDefinition
     $ merge
         { type: show WhileContractType
-        , message0: "While %1 observation %2 continue as %3 if block is %4 or higher continue as %5"
+        , message0: "While observation %1 continue as %2 if block is %3 or higher continue as %4"
         , args0:
-          [ Dummy
-          , Value {name: "observation", check: "observation"}
+          [ Value {name: "observation", check: "observation", align: Right}
           , Statement {name: "contract1", check: "contract", align: Right}
           , Number {name: "timeout", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
           , Statement {name: "contract2", check: "contract", align: Right}
           ]
         , colour: "0"
         , previousStatement: Just "contract"
+        , inputsInline: Just false
         } defaultBlockDefinition
 
 scaleContract :: BlockDefinition
@@ -278,9 +291,9 @@ scaleContract =
         { type: show ScaleContractType
         , message0: "Scale %1 %2 %3 with %4"
         , args0:
-          [ Value {name: "scale1", check: "value"}
-          , Value {name: "scale2", check: "value"}
-          , Value {name: "scale3", check: "value"}
+          [ Value {name: "scale1", check: "value", align: Right}
+          , Value {name: "scale2", check: "value", align: Right}
+          , Value {name: "scale3", check: "value", align: Right}
           , Statement {name: "contract", check: "contract", align: Right}
           ]
         , colour: "0"
@@ -336,8 +349,8 @@ andObservation =
         { type: show AndObservationType
         , message0: "%1 and %2"
         , args0:
-          [ Value {name: "observation1", check: "observation"}
-          , Value {name: "observation2", check: "observation"}
+          [ Value {name: "observation1", check: "observation", align: Right}
+          , Value {name: "observation2", check: "observation", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -351,8 +364,8 @@ orObservation =
         { type: show OrObservationType
         , message0: "%1 or %2"
         , args0:
-          [ Value {name: "observation1", check: "observation"}
-          , Value {name: "observation2", check: "observation"}
+          [ Value {name: "observation1", check: "observation", align: Right}
+          , Value {name: "observation2", check: "observation", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -366,7 +379,7 @@ notObservation =
         { type: show NotObservationType
         , message0: "Not %1"
         , args0:
-          [ Value {name: "observation", check: "observation"}
+          [ Value {name: "observation", check: "observation", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -411,8 +424,8 @@ valueGEObservation =
         { type: show ValueGEObservationType
         , message0: "value %1 is greater than or equal to %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -426,8 +439,8 @@ valueGObservation =
         { type: show ValueGObservationType
         , message0: "value %1 is greater than %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -441,8 +454,8 @@ valueLEObservation =
         { type: show ValueLEObservationType
         , message0: "value %1 is less than or equal to %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -456,8 +469,8 @@ valueLObservation =
         { type: show ValueLObservationType
         , message0: "value %1 is less than %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -471,8 +484,8 @@ valueEqObservation =
         { type: show ValueEqObservationType
         , message0: "value %1 is equal to %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "230"
         , output: Just "observation"
@@ -534,7 +547,7 @@ constValue =
   BlockDefinition
     $ merge
         { type: show ConstValueType
-        , message0: "Constant Value %1"
+        , message0: "Constant Value %1 ADA"
         , args0:
           [ Number {name: "constant", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
           ]
@@ -550,7 +563,7 @@ negValue =
         { type: show NegValueType
         , message0: "Negate Value %1"
         , args0:
-          [ Value {name: "value", check: "value"}
+          [ Value {name: "value", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -564,8 +577,8 @@ addValue =
         { type: show AddValueType
         , message0: "%1 + %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -579,8 +592,8 @@ subValue =
         { type: show SubValueType
         , message0: "%1 - %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -594,8 +607,8 @@ mulValue =
         { type: show MulValueType
         , message0: "%1 * %2"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -609,9 +622,9 @@ divValue =
         { type: show DivValueType
         , message0: "%1 / %2 with default %3"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
-          , Value {name: "value3", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
+          , Value {name: "value3", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -625,9 +638,9 @@ modValue =
         { type: show ModValueType
         , message0: "%1 % %2 with default %3"
         , args0:
-          [ Value {name: "value1", check: "value"}
-          , Value {name: "value2", check: "value"}
-          , Value {name: "value3", check: "value"}
+          [ Value {name: "value1", check: "value", align: Right}
+          , Value {name: "value2", check: "value", align: Right}
+          , Value {name: "value3", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -643,7 +656,7 @@ fromChoiceValue =
         , args0:
           [ Number {name: "choice_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
           , Number {name: "person_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
-          , Value {name: "value", check: "value"}
+          , Value {name: "value", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -658,7 +671,7 @@ fromOracleValue =
         , message0: "use value of oracle with id: %1 if no oracle exists use: %2"
         , args0:
           [ Number {name: "oracle_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
-          , Value {name: "value", check: "value"}
+          , Value {name: "value", check: "value", align: Right}
           ]
         , colour: "135"
         , output: Just "value"
@@ -668,7 +681,7 @@ fromOracleValue =
 toolbox :: forall a b. HTML a b
 toolbox =
   xml [id_ "blocklyToolbox", style "display:none"]
-    [ category [name "Contracts"]
+    [ category [name "Contracts", colour "0"]
         [ block [blockType (unwrap nullContract).type] []
         , block [blockType (unwrap commitContract).type] []
         , block [blockType (unwrap payContract).type] []
@@ -680,7 +693,7 @@ toolbox =
         , block [blockType (unwrap letContract).type] []
         , block [blockType (unwrap useContract).type] []
         ]
-    , category [name "Observations"]
+    , category [name "Observations", colour "230"]
         [ block [blockType (unwrap belowTimeoutObservation).type] []
         , block [blockType (unwrap andObservation).type] []
         , block [blockType (unwrap orObservation).type] []
@@ -695,7 +708,7 @@ toolbox =
         , block [blockType (unwrap trueObservation).type] []
         , block [blockType (unwrap falseObservation).type] []
         ]
-    , category [name "Values"]
+    , category [name "Values", colour "135"]
         [ block [blockType (unwrap currentBlockValue).type] []
         , block [blockType (unwrap committedValue).type] []
         , block [blockType (unwrap constValue).type] []

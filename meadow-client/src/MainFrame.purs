@@ -47,7 +47,34 @@ import Marlowe.Test (_blockNumber)
 import Marlowe.Types (IdChoice(IdChoice))
 import Meadow (SPParams_)
 import Meadow.Gists (mkNewGist, playgroundGistFile)
-import MonadApp (class MonadApp, editorGetValue, editorGotoLine, editorSetAnnotations, editorSetValue, emptyMarloweState, extendWith, getGistByGistId, getOauthStatus, marloweEditorGetValue, marloweEditorSetValue, patchGistByGistId, postContractHaskell, postGist, preventDefault, readFileFromDragEvent, resetContract, resizeBlockly, runHalogenApp, saveBuffer, saveInitialState, saveMarloweBuffer, updateContractInState, updateMarloweState, updateState, setBlocklyCode)
+import MonadApp
+  ( class MonadApp
+  , haskellEditorGetValue
+  , haskellEditorGotoLine
+  , haskellEditorSetAnnotations
+  , haskellEditorSetValue
+  , emptyMarloweState
+  , extendWith
+  , getGistByGistId
+  , getOauthStatus
+  , marloweEditorGetValue
+  , marloweEditorSetValue
+  , patchGistByGistId
+  , postContractHaskell
+  , postGist
+  , preventDefault
+  , readFileFromDragEvent
+  , resetContract
+  , resizeBlockly
+  , runHalogenApp
+  , saveBuffer
+  , saveInitialState
+  , saveMarloweBuffer
+  , updateContractInState
+  , updateMarloweState
+  , updateState
+  , setBlocklyCode
+  )
 import Network.RemoteData (RemoteData(Success, Loading, NotAsked), _Success, isLoading, isSuccess)
 import Prelude (type (~>), Unit, Void, add, bind, const, discard, identity, not, one, pure, show, unit, (#), ($), (-), (<$>), (<<<), (<>), (==), (||))
 import Servant.PureScript.Settings (SPSettings_)
@@ -414,7 +441,7 @@ evalF (HandleBlocklyMessage msg next) = do
   pure next
 
 evalF (SetBlocklyCode next) = do
-  mSource <- marloweEditorGetValue 
+  mSource <- marloweEditorGetValue
   case mSource of
     Nothing -> pure unit
     Just source -> do
@@ -475,8 +502,7 @@ render state =
           [ simulationPane state
           ]
       , viewContainer stateView BlocklyV
-          [ h2 [class_ $ ClassName "pane-header"] [text "Blockly"]
-          , slot' cpBlockly BlocklySlot (blockly blockDefinitions) unit (input HandleBlocklyMessage)
+          [ slot' cpBlockly BlocklySlot (blockly blockDefinitions) unit (input HandleBlocklyMessage)
           , MB.toolbox
           , MB.workspaceBlocks
           ]
