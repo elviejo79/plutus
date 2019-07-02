@@ -12,6 +12,7 @@ import Control.Lazy (class Lazy)
 import Control.Monad.Gen (class MonadGen)
 import Control.Monad.Rec.Class (class MonadRec)
 import Data.Either (Either(..))
+import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -72,9 +73,4 @@ buildBlocks bs contract = do
     Just block -> pure block
   let
     inputs = inputList rootBlock
-
-    mInput = getInputWithName inputs "contract"
-  case mInput of
-    Nothing -> pure unit
-    Just i -> do
-      toBlockly newBlock bs.workspace i contract
+  for_ (getInputWithName inputs "contract") \input -> toBlockly newBlock bs.workspace input contract

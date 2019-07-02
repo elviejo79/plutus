@@ -1,7 +1,6 @@
 module Marlowe.Blockly where
 
 import Prelude
-
 import Blockly (AlignDirection(..), Arg(..), BlockDefinition(..), block, blockType, category, colour, defaultBlockDefinition, getBlockById, initializeWorkspace, name, render, style, x, xml, y)
 import Blockly.Generator (Generator, Input, clearWorkspace, compose2, connectToOutput, connectToPrevious, fieldName, fieldRow, getFieldValue, getInputWithName, inputList, inputName, insertGeneratorFunction, mkGenerator, setFieldText, statementToCode)
 import Blockly.Types (Block, BlocklyState, Workspace)
@@ -9,8 +8,16 @@ import Control.Alternative ((<|>))
 import Data.Array as Array
 import Data.Bifunctor (lmap, rmap)
 import Data.Either (Either)
+import Data.Enum (class BoundedEnum, class Enum, upFromIncluding)
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Bounded (genericBottom, genericTop)
+import Data.Generic.Rep.Enum (genericCardinality, genericFromEnum, genericPred, genericSucc, genericToEnum)
+import Data.Generic.Rep.Eq (genericEq)
+import Data.Generic.Rep.Ord (genericCompare)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
+import Data.Traversable (traverse_)
 import Effect (Effect)
 import Halogen.HTML (HTML)
 import Halogen.HTML.Properties (id_)
@@ -20,10 +27,8 @@ import Record (merge)
 import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Basic (parens)
 
-data BlockType
-  = BaseContractType
-  -- contracts
-  | NullContractType
+data ContractType
+  = NullContractType
   | CommitContractType
   | PayContractType
   | BothContractType
@@ -33,8 +38,36 @@ data BlockType
   | ScaleContractType
   | LetContractType
   | UseContractType
-  -- observations
-  | BelowTimeoutObservationType
+
+derive instance genericContractType :: Generic ContractType _
+
+instance showContractType :: Show ContractType where
+  show = genericShow
+
+instance eqContractType :: Eq ContractType where
+  eq = genericEq
+
+instance ordContractType :: Ord ContractType where
+  compare = genericCompare
+
+instance enumContractType :: Enum ContractType where
+  succ = genericSucc
+  pred = genericPred
+
+instance boundedContractType :: Bounded ContractType where
+  bottom = genericBottom
+  top = genericTop
+
+instance boundedEnumContractType :: BoundedEnum ContractType where
+  cardinality = genericCardinality
+  toEnum = genericToEnum
+  fromEnum = genericFromEnum
+
+contractTypes :: Array ContractType
+contractTypes = upFromIncluding bottom
+
+data ObservationType
+  = BelowTimeoutObservationType
   | AndObservationType
   | OrObservationType
   | NotObservationType
@@ -47,8 +80,36 @@ data BlockType
   | ValueEqObservationType
   | TrueObservationType
   | FalseObservationType
-  -- values
-  | CurrentBlockType
+
+derive instance genericObservationType :: Generic ObservationType _
+
+instance showObservationType :: Show ObservationType where
+  show = genericShow
+
+instance eqObservationType :: Eq ObservationType where
+  eq = genericEq
+
+instance ordObservationType :: Ord ObservationType where
+  compare = genericCompare
+
+instance enumObservationType :: Enum ObservationType where
+  succ = genericSucc
+  pred = genericPred
+
+instance boundedObservationType :: Bounded ObservationType where
+  bottom = genericBottom
+  top = genericTop
+
+instance boundedEnumObservationType :: BoundedEnum ObservationType where
+  cardinality = genericCardinality
+  toEnum = genericToEnum
+  fromEnum = genericFromEnum
+
+observationTypes :: Array ObservationType
+observationTypes = upFromIncluding bottom
+
+data ValueType
+  = CurrentBlockType
   | CommittedValueType
   | ConstValueType
   | NegValueType
@@ -60,115 +121,94 @@ data BlockType
   | FromChoiceValueType
   | FromOracleValueType
 
+derive instance genericValueType :: Generic ValueType _
+
+instance showValueType :: Show ValueType where
+  show = genericShow
+
+instance eqValueType :: Eq ValueType where
+  eq = genericEq
+
+instance ordValueType :: Ord ValueType where
+  compare = genericCompare
+
+instance enumValueType :: Enum ValueType where
+  succ = genericSucc
+  pred = genericPred
+
+instance boundedValueType :: Bounded ValueType where
+  bottom = genericBottom
+  top = genericTop
+
+instance boundedEnumValueType :: BoundedEnum ValueType where
+  cardinality = genericCardinality
+  toEnum = genericToEnum
+  fromEnum = genericFromEnum
+
+valueTypes :: Array ValueType
+valueTypes = upFromIncluding bottom
+
+data BlockType
+  = BaseContractType
+  | ContractType ContractType
+  | ObservationType ObservationType
+  | ValueType ValueType
+
+derive instance genericBlockType :: Generic BlockType _
+
+instance eqBlockType :: Eq BlockType where
+  eq = genericEq
+
+instance ordBlockType :: Ord BlockType where
+  compare = genericCompare
+
+instance enumBlockType :: Enum BlockType where
+  succ = genericSucc
+  pred = genericPred
+
+instance boundedBlockType :: Bounded BlockType where
+  bottom = genericBottom
+  top = genericTop
+
+instance boundedEnumBlockType :: BoundedEnum BlockType where
+  cardinality = genericCardinality
+  toEnum = genericToEnum
+  fromEnum = genericFromEnum
+
 instance showBlockType :: Show BlockType where
-  show BaseContractType = "contract"
-  -- contracts
-  show NullContractType = "contract_null"
-  show CommitContractType = "contract_commit"
-  show PayContractType = "contract_pay"
-  show BothContractType = "contract_both"
-  show ChoiceContractType = "contract_choice"
-  show WhenContractType = "contract_when"
-  show WhileContractType = "contract_while"
-  show ScaleContractType = "contract_scale"
-  show LetContractType = "contract_let"
-  show UseContractType = "contract_use"
-  -- observations
-  show BelowTimeoutObservationType = "observation_below_timeout"
-  show AndObservationType = "observation_and"
-  show OrObservationType = "observation_or"
-  show NotObservationType = "observation_not"
-  show ChoseThisObservationType = "observation_chose_this"
-  show ChoseObservationType = "observation_chose"
-  show ValueGEObservationType = "observation_ge"
-  show ValueGObservationType = "observation_g"
-  show ValueLEObservationType = "observation_le"
-  show ValueLObservationType = "observation_l"
-  show ValueEqObservationType = "observation_eq"
-  show TrueObservationType = "observation_true"
-  show FalseObservationType = "observation_false"
-  -- values
-  show CurrentBlockType = "value_current_block"
-  show CommittedValueType = "value_committed"
-  show ConstValueType = "value_const"
-  show NegValueType = "value_neg"
-  show AddValueType = "value_add"
-  show SubValueType = "value_sub"
-  show MulValueType = "value_mul"
-  show DivValueType = "value_div"
-  show ModValueType = "value_mod"
-  show FromChoiceValueType = "value_from_choice"
-  show FromOracleValueType = "value_form_oracle"
+  show BaseContractType = "BaseContractType"
+  show (ContractType c) = show c
+  show (ObservationType ot) = show ot
+  show (ValueType vt) = show vt
 
 blockDefinitions :: Array BlockDefinition
-blockDefinitions =
-  [ baseContract -- this is a container for the entire contract and always exists
-  -- contracts
-  , nullContract
-  , commitContract
-  , payContract
-  , bothContract
-  , choiceContract
-  , whenContract
-  , whileContract
-  , scaleContract
-  , letContract
-  , useContract
-  -- observations
-  , belowTimeoutObservation
-  , andObservation
-  , orObservation
-  , notObservation
-  , choseThisObservation
-  , choseObservation
-  , valueGEObservation
-  , valueGObservation
-  , valueLEObservation
-  , valueLObservation
-  , valueEqObservation
-  , trueObservation
-  , falseObservation
-  -- values
-  , currentBlockValue
-  , committedValue
-  , constValue
-  , negValue
-  , addValue
-  , subValue
-  , mulValue
-  , divValue
-  , modValue
-  , fromChoiceValue
-  , fromOracleValue
-  ]
+blockDefinitions = map toDefinition (upFromIncluding bottom)
 
-baseContract :: BlockDefinition
-baseContract =
+toDefinition :: BlockType -> BlockDefinition
+toDefinition BaseContractType =
   BlockDefinition
     $ merge
         { type: show BaseContractType
         , message0: "%1 CONTRACT %2 %3"
         , args0:
           [ DummyRight
-          , Statement {name: "contract", check: "contract", align: Right}
+          , Statement {name: (show BaseContractType), check: (show BaseContractType), align: Right}
           , DummyRight
           ]
         , colour: "0"
         , inputsInline: Just false
         } defaultBlockDefinition
 
-nullContract :: BlockDefinition
-nullContract =
+toDefinition (ContractType NullContractType) =
   BlockDefinition
     $ merge
         { type: show NullContractType
         , message0: "Null"
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         } defaultBlockDefinition
 
-commitContract :: BlockDefinition
-commitContract =
+toDefinition (ContractType CommitContractType) =
   BlockDefinition
     $ merge
         { type: show CommitContractType
@@ -181,21 +221,20 @@ commitContract =
           , DummyRight
           , Number {name: "person_id", value: 1.0, min: Just 1.0, max: Nothing, precision: Nothing}
           , DummyRight
-          , Value {name: "ammount", check: "value", align: Right }
+          , Value {name: "ammount", check: "value", align: Right}
           , Number {name: "end_expiration", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
           , DummyRight
           , Number {name: "start_expiration", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
           , DummyRight
-          , Statement {name: "contract1", check: "contract", align: Right}
-          , Statement {name: "contract2", check: "contract", align: Right}
+          , Statement {name: "contract1", check: (show BaseContractType), align: Right}
+          , Statement {name: "contract2", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         , inputsInline: Just false
         } defaultBlockDefinition
 
-payContract :: BlockDefinition
-payContract =
+toDefinition (ContractType PayContractType) =
   BlockDefinition
     $ merge
         { type: show PayContractType
@@ -210,31 +249,29 @@ payContract =
           , DummyRight
           , Value {name: "ammount", check: "value", align: Right}
           , Number {name: "timeout", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
-          , Statement {name: "contract1", check: "contract", align: Right}
-          , Statement {name: "contract2", check: "contract", align: Right}
+          , Statement {name: "contract1", check: (show BaseContractType), align: Right}
+          , Statement {name: "contract2", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         , inputsInline: Just false
         } defaultBlockDefinition
 
-bothContract :: BlockDefinition
-bothContract =
+toDefinition (ContractType BothContractType) =
   BlockDefinition
     $ merge
         { type: show BothContractType
         , message0: "Both %1 enforce both %2 and %3"
         , args0:
           [ DummyCentre
-          , Statement {name: "contract1", check: "contract", align: Right}
-          , Statement {name: "contract2", check: "contract", align: Right}
+          , Statement {name: "contract1", check: (show BaseContractType), align: Right}
+          , Statement {name: "contract2", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         } defaultBlockDefinition
 
-choiceContract :: BlockDefinition
-choiceContract =
+toDefinition (ContractType ChoiceContractType) =
   BlockDefinition
     $ merge
         { type: show ChoiceContractType
@@ -242,50 +279,47 @@ choiceContract =
         , args0:
           [ DummyCentre
           , Value {name: "observation", check: "observation", align: Right}
-          , Statement {name: "contract1", check: "contract", align: Right}
-          , Statement {name: "contract2", check: "contract", align: Right}
+          , Statement {name: "contract1", check: (show BaseContractType), align: Right}
+          , Statement {name: "contract2", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         , inputsInline: Just false
         } defaultBlockDefinition
 
-whenContract :: BlockDefinition
-whenContract =
+toDefinition (ContractType WhenContractType) =
   BlockDefinition
     $ merge
         { type: show WhenContractType
         , message0: "When observation %1 continue as %2 if block is %3 or higher continue as %4"
         , args0:
           [ Value {name: "observation", check: "observation", align: Right}
-          , Statement {name: "contract1", check: "contract", align: Right}
+          , Statement {name: "contract1", check: (show BaseContractType), align: Right}
           , Number {name: "timeout", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
-          , Statement {name: "contract2", check: "contract", align: Right}
+          , Statement {name: "contract2", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         , inputsInline: Just false
         } defaultBlockDefinition
 
-whileContract :: BlockDefinition
-whileContract =
+toDefinition (ContractType WhileContractType) =
   BlockDefinition
     $ merge
         { type: show WhileContractType
         , message0: "While observation %1 continue as %2 if block is %3 or higher continue as %4"
         , args0:
           [ Value {name: "observation", check: "observation", align: Right}
-          , Statement {name: "contract1", check: "contract", align: Right}
+          , Statement {name: "contract1", check: (show BaseContractType), align: Right}
           , Number {name: "timeout", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
-          , Statement {name: "contract2", check: "contract", align: Right}
+          , Statement {name: "contract2", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         , inputsInline: Just false
         } defaultBlockDefinition
 
-scaleContract :: BlockDefinition
-scaleContract =
+toDefinition (ContractType ScaleContractType) =
   BlockDefinition
     $ merge
         { type: show ScaleContractType
@@ -294,29 +328,27 @@ scaleContract =
           [ Value {name: "scale1", check: "value", align: Right}
           , Value {name: "scale2", check: "value", align: Right}
           , Value {name: "scale3", check: "value", align: Right}
-          , Statement {name: "contract", check: "contract", align: Right}
+          , Statement {name: "contract", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         } defaultBlockDefinition
 
-letContract :: BlockDefinition
-letContract =
+toDefinition (ContractType LetContractType) =
   BlockDefinition
     $ merge
         { type: show LetContractType
         , message0: "Let %1 be %2 continue as %3"
         , args0:
           [ Number {name: "let_label", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
-          , Statement {name: "contract1", check: "contract", align: Right}
-          , Statement {name: "contract2", check: "contract", align: Right}
+          , Statement {name: "contract1", check: (show BaseContractType), align: Right}
+          , Statement {name: "contract2", check: (show BaseContractType), align: Right}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         } defaultBlockDefinition
 
-useContract :: BlockDefinition
-useContract =
+toDefinition (ContractType UseContractType) =
   BlockDefinition
     $ merge
         { type: show UseContractType
@@ -325,11 +357,10 @@ useContract =
           [ Number {name: "let_label", value: 0.0, min: Just 0.0, max: Nothing, precision: Nothing}
           ]
         , colour: "0"
-        , previousStatement: Just "contract"
+        , previousStatement: Just (show BaseContractType)
         } defaultBlockDefinition
 
-belowTimeoutObservation :: BlockDefinition
-belowTimeoutObservation =
+toDefinition (ObservationType BelowTimeoutObservationType) =
   BlockDefinition
     $ merge
         { type: show BelowTimeoutObservationType
@@ -342,8 +373,7 @@ belowTimeoutObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-andObservation :: BlockDefinition
-andObservation =
+toDefinition (ObservationType AndObservationType) =
   BlockDefinition
     $ merge
         { type: show AndObservationType
@@ -357,8 +387,7 @@ andObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-orObservation :: BlockDefinition
-orObservation =
+toDefinition (ObservationType OrObservationType) =
   BlockDefinition
     $ merge
         { type: show OrObservationType
@@ -372,8 +401,7 @@ orObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-notObservation :: BlockDefinition
-notObservation =
+toDefinition (ObservationType NotObservationType) =
   BlockDefinition
     $ merge
         { type: show NotObservationType
@@ -386,8 +414,7 @@ notObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-choseThisObservation :: BlockDefinition
-choseThisObservation =
+toDefinition (ObservationType ChoseThisObservationType) =
   BlockDefinition
     $ merge
         { type: show ChoseThisObservationType
@@ -402,8 +429,7 @@ choseThisObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-choseObservation :: BlockDefinition
-choseObservation =
+toDefinition (ObservationType ChoseObservationType) =
   BlockDefinition
     $ merge
         { type: show ChoseObservationType
@@ -417,8 +443,7 @@ choseObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-valueGEObservation :: BlockDefinition
-valueGEObservation =
+toDefinition (ObservationType ValueGEObservationType) =
   BlockDefinition
     $ merge
         { type: show ValueGEObservationType
@@ -432,8 +457,7 @@ valueGEObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-valueGObservation :: BlockDefinition
-valueGObservation =
+toDefinition (ObservationType ValueGObservationType) =
   BlockDefinition
     $ merge
         { type: show ValueGObservationType
@@ -447,8 +471,7 @@ valueGObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-valueLEObservation :: BlockDefinition
-valueLEObservation =
+toDefinition (ObservationType ValueLEObservationType) =
   BlockDefinition
     $ merge
         { type: show ValueLEObservationType
@@ -462,8 +485,7 @@ valueLEObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-valueLObservation :: BlockDefinition
-valueLObservation =
+toDefinition (ObservationType ValueLObservationType) =
   BlockDefinition
     $ merge
         { type: show ValueLObservationType
@@ -477,8 +499,7 @@ valueLObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-valueEqObservation :: BlockDefinition
-valueEqObservation =
+toDefinition (ObservationType ValueEqObservationType) =
   BlockDefinition
     $ merge
         { type: show ValueEqObservationType
@@ -492,8 +513,7 @@ valueEqObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-trueObservation :: BlockDefinition
-trueObservation =
+toDefinition (ObservationType TrueObservationType) =
   BlockDefinition
     $ merge
         { type: show TrueObservationType
@@ -504,8 +524,7 @@ trueObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-falseObservation :: BlockDefinition
-falseObservation =
+toDefinition (ObservationType FalseObservationType) =
   BlockDefinition
     $ merge
         { type: show FalseObservationType
@@ -516,8 +535,7 @@ falseObservation =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-currentBlockValue :: BlockDefinition
-currentBlockValue =
+toDefinition (ValueType CurrentBlockType) =
   BlockDefinition
     $ merge
         { type: show CurrentBlockType
@@ -528,8 +546,7 @@ currentBlockValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-committedValue :: BlockDefinition
-committedValue =
+toDefinition (ValueType CommittedValueType) =
   BlockDefinition
     $ merge
         { type: show CommittedValueType
@@ -542,8 +559,7 @@ committedValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-constValue :: BlockDefinition
-constValue =
+toDefinition (ValueType ConstValueType) =
   BlockDefinition
     $ merge
         { type: show ConstValueType
@@ -556,8 +572,7 @@ constValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-negValue :: BlockDefinition
-negValue =
+toDefinition (ValueType NegValueType) =
   BlockDefinition
     $ merge
         { type: show NegValueType
@@ -570,8 +585,7 @@ negValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-addValue :: BlockDefinition
-addValue =
+toDefinition (ValueType AddValueType) =
   BlockDefinition
     $ merge
         { type: show AddValueType
@@ -585,8 +599,7 @@ addValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-subValue :: BlockDefinition
-subValue =
+toDefinition (ValueType SubValueType) =
   BlockDefinition
     $ merge
         { type: show SubValueType
@@ -600,8 +613,7 @@ subValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-mulValue :: BlockDefinition
-mulValue =
+toDefinition (ValueType MulValueType) =
   BlockDefinition
     $ merge
         { type: show MulValueType
@@ -615,8 +627,7 @@ mulValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-divValue :: BlockDefinition
-divValue =
+toDefinition (ValueType DivValueType) =
   BlockDefinition
     $ merge
         { type: show DivValueType
@@ -631,8 +642,7 @@ divValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-modValue :: BlockDefinition
-modValue =
+toDefinition (ValueType ModValueType) =
   BlockDefinition
     $ merge
         { type: show ModValueType
@@ -647,8 +657,7 @@ modValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-fromChoiceValue :: BlockDefinition
-fromChoiceValue =
+toDefinition (ValueType FromChoiceValueType) =
   BlockDefinition
     $ merge
         { type: show FromChoiceValueType
@@ -663,8 +672,7 @@ fromChoiceValue =
         , inputsInline: Just true
         } defaultBlockDefinition
 
-fromOracleValue :: BlockDefinition
-fromOracleValue =
+toDefinition (ValueType FromOracleValueType) =
   BlockDefinition
     $ merge
         { type: show FromOracleValueType
@@ -681,52 +689,18 @@ fromOracleValue =
 toolbox :: forall a b. HTML a b
 toolbox =
   xml [id_ "blocklyToolbox", style "display:none"]
-    [ category [name "Contracts", colour "0"]
-        [ block [blockType (unwrap nullContract).type] []
-        , block [blockType (unwrap commitContract).type] []
-        , block [blockType (unwrap payContract).type] []
-        , block [blockType (unwrap bothContract).type] []
-        , block [blockType (unwrap choiceContract).type] []
-        , block [blockType (unwrap whenContract).type] []
-        , block [blockType (unwrap whileContract).type] []
-        , block [blockType (unwrap scaleContract).type] []
-        , block [blockType (unwrap letContract).type] []
-        , block [blockType (unwrap useContract).type] []
-        ]
-    , category [name "Observations", colour "230"]
-        [ block [blockType (unwrap belowTimeoutObservation).type] []
-        , block [blockType (unwrap andObservation).type] []
-        , block [blockType (unwrap orObservation).type] []
-        , block [blockType (unwrap notObservation).type] []
-        , block [blockType (unwrap choseThisObservation).type] []
-        , block [blockType (unwrap choseObservation).type] []
-        , block [blockType (unwrap valueGEObservation).type] []
-        , block [blockType (unwrap valueGObservation).type] []
-        , block [blockType (unwrap valueLEObservation).type] []
-        , block [blockType (unwrap valueLObservation).type] []
-        , block [blockType (unwrap valueEqObservation).type] []
-        , block [blockType (unwrap trueObservation).type] []
-        , block [blockType (unwrap falseObservation).type] []
-        ]
-    , category [name "Values", colour "135"]
-        [ block [blockType (unwrap currentBlockValue).type] []
-        , block [blockType (unwrap committedValue).type] []
-        , block [blockType (unwrap constValue).type] []
-        , block [blockType (unwrap negValue).type] []
-        , block [blockType (unwrap addValue).type] []
-        , block [blockType (unwrap subValue).type] []
-        , block [blockType (unwrap mulValue).type] []
-        , block [blockType (unwrap divValue).type] []
-        , block [blockType (unwrap modValue).type] []
-        , block [blockType (unwrap fromChoiceValue).type] []
-        , block [blockType (unwrap fromOracleValue).type] []
-        ]
+    [ category [name "Contracts", colour "0"] (map mkBlock contractTypes)
+    , category [name "Observations", colour "230"] (map mkBlock observationTypes)
+    , category [name "Values", colour "135"] (map mkBlock valueTypes)
     ]
+  where
+  mkBlock :: forall t. Show t => t -> _
+  mkBlock t = block [blockType (show t)] []
 
 workspaceBlocks :: forall a b. HTML a b
 workspaceBlocks =
   xml [id_ "workspaceBlocks", style "display:none"]
-    [ block [blockType (unwrap baseContract).type, x "13", y "187", id_ "root_contract"] []
+    [ block [blockType (show BaseContractType), x "13", y "187", id_ "root_contract"] []
     ]
 
 parse :: forall a. Parser String a -> String -> Either String a
@@ -735,11 +709,21 @@ parse p = lmap show <<< flip runParser (parens p <|> p)
 buildGenerator :: BlocklyState -> Effect Generator
 buildGenerator blocklyState = do
   g <- mkGenerator blocklyState "Marlowe"
-  mkGenFun g BaseContractType
+  let
+    (blockTypes:: Array BlockType) = upFromIncluding bottom
+  traverse_ (mkGenFun blocklyState g) blockTypes
+  pure g
+
+mkGenFun :: BlocklyState -> Generator -> BlockType -> Effect Unit
+mkGenFun blocklyState g BaseContractType =
+  mkGenFun' blocklyState g BaseContractType
     $ \bs block -> parse Parser.contract =<< statementToCode g block (show BaseContractType)
-  -- contracts
-  mkGenFun g NullContractType $ \_ _ -> pure Null
-  mkGenFun g CommitContractType
+
+-- contracts
+mkGenFun blocklyState g (ContractType NullContractType) = mkGenFun' blocklyState g (ContractType NullContractType) $ \_ _ -> pure Null
+
+mkGenFun blocklyState g (ContractType CommitContractType) =
+  mkGenFun' blocklyState g (ContractType CommitContractType)
     $ \bs block -> do
         actionId <- parse Parser.idAction =<< getFieldValue block "action_id"
         commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
@@ -750,7 +734,9 @@ buildGenerator blocklyState = do
         contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
         contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
         pure (Commit actionId commitId personId ammount endExpiration startExpiration contract1 contract2)
-  mkGenFun g PayContractType
+
+mkGenFun blocklyState g (ContractType PayContractType) =
+  mkGenFun' blocklyState g (ContractType PayContractType)
     $ \bs block -> do
         actionId <- parse Parser.idAction =<< getFieldValue block "action_id"
         commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
@@ -760,68 +746,92 @@ buildGenerator blocklyState = do
         contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
         contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
         pure (Pay actionId commitId payee ammount timeout contract1 contract2)
-  mkGenFun g BothContractType
+
+mkGenFun blocklyState g (ContractType BothContractType) =
+  mkGenFun' blocklyState g (ContractType BothContractType)
     $ \bs block -> do
         contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
         contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
         pure (Both contract1 contract2)
-  mkGenFun g ChoiceContractType
+
+mkGenFun blocklyState g (ContractType ChoiceContractType) =
+  mkGenFun' blocklyState g (ContractType ChoiceContractType)
     $ \bs block -> do
         observation <- parse Parser.observation =<< statementToCode g block "observation"
         contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
         contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
         pure (Choice observation contract1 contract2)
-  mkGenFun g WhenContractType
+
+mkGenFun blocklyState g (ContractType WhenContractType) =
+  mkGenFun' blocklyState g (ContractType WhenContractType)
     $ \bs block -> do
         observation <- parse Parser.observation =<< statementToCode g block "observation"
         timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
         contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
         contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
         pure (When observation timeout contract1 contract2)
-  mkGenFun g WhileContractType
+
+mkGenFun blocklyState g (ContractType WhileContractType) =
+  mkGenFun' blocklyState g (ContractType WhileContractType)
     $ \bs block -> do
         observation <- parse Parser.observation =<< statementToCode g block "observation"
         timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
         contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
         contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
         pure (While observation timeout contract1 contract2)
-  mkGenFun g ScaleContractType
+
+mkGenFun blocklyState g (ContractType ScaleContractType) =
+  mkGenFun' blocklyState g (ContractType ScaleContractType)
     $ \bs block -> do
         scale1 <- parse Parser.value =<< statementToCode g block "scale1"
         scale2 <- parse Parser.value =<< statementToCode g block "scale2"
         scale3 <- parse Parser.value =<< statementToCode g block "scale3"
         contract <- parse Parser.contract =<< statementToCode g block "contract"
         pure (Scale scale1 scale2 scale3 contract)
-  mkGenFun g LetContractType
+
+mkGenFun blocklyState g (ContractType LetContractType) =
+  mkGenFun' blocklyState g (ContractType LetContractType)
     $ \bs block -> do
         letLabel <- parse Parser.bigInteger =<< getFieldValue block "let_label"
         contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
         contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
         pure (Let letLabel contract1 contract2)
-  mkGenFun g UseContractType
+
+mkGenFun blocklyState g (ContractType UseContractType) =
+  mkGenFun' blocklyState g (ContractType UseContractType)
     $ \bs block -> do
         letLabel <- parse Parser.bigInteger =<< getFieldValue block "let_label"
         pure (Use letLabel)
-  -- observations
-  mkGenFun g BelowTimeoutObservationType
+
+-- observations
+mkGenFun blocklyState g (ObservationType BelowTimeoutObservationType) =
+  mkGenFun' blocklyState g (ObservationType BelowTimeoutObservationType)
     $ \bs block -> do
         timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
         pure (BelowTimeout timeout)
-  mkGenFun g AndObservationType
+
+mkGenFun blocklyState g (ObservationType AndObservationType) =
+  mkGenFun' blocklyState g (ObservationType AndObservationType)
     $ \bs block -> do
         observation1 <- parse Parser.observation =<< statementToCode g block "observation1"
         observation2 <- parse Parser.observation =<< statementToCode g block "observation2"
         pure (AndObs observation1 observation2)
-  mkGenFun g OrObservationType
+
+mkGenFun blocklyState g (ObservationType OrObservationType) =
+  mkGenFun' blocklyState g (ObservationType OrObservationType)
     $ \bs block -> do
         observation1 <- parse Parser.observation =<< statementToCode g block "observation1"
         observation2 <- parse Parser.observation =<< statementToCode g block "observation2"
         pure (OrObs observation1 observation2)
-  mkGenFun g NotObservationType
+
+mkGenFun blocklyState g (ObservationType NotObservationType) =
+  mkGenFun' blocklyState g (ObservationType NotObservationType)
     $ \bs block -> do
         observation <- parse Parser.observation =<< statementToCode g block "observation"
         pure (NotObs observation)
-  mkGenFun g ChoseThisObservationType
+
+mkGenFun blocklyState g (ObservationType ChoseThisObservationType) =
+  mkGenFun' blocklyState g (ObservationType ChoseThisObservationType)
     $ \bs block -> do
         choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
         personId <- parse Parser.person =<< getFieldValue block "person_id"
@@ -829,82 +839,115 @@ buildGenerator blocklyState = do
         let
           idChoice = IdChoice {choice: choiceId, person: personId}
         pure (ChoseThis idChoice choice)
-  mkGenFun g ChoseObservationType
+
+mkGenFun blocklyState g (ObservationType ChoseObservationType) =
+  mkGenFun' blocklyState g (ObservationType ChoseObservationType)
     $ \bs block -> do
         choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
         personId <- parse Parser.person =<< getFieldValue block "person_id"
         let
           idChoice = IdChoice {choice: choiceId, person: personId}
         pure (ChoseSomething idChoice)
-  mkGenFun g ValueGEObservationType
+
+mkGenFun blocklyState g (ObservationType ValueGEObservationType) =
+  mkGenFun' blocklyState g (ObservationType ValueGEObservationType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (ValueGE value1 value2)
-  mkGenFun g ValueGObservationType
+
+mkGenFun blocklyState g (ObservationType ValueGObservationType) =
+  mkGenFun' blocklyState g (ObservationType ValueGObservationType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (ValueGT value1 value2)
-  mkGenFun g ValueLEObservationType
+
+mkGenFun blocklyState g (ObservationType ValueLEObservationType) =
+  mkGenFun' blocklyState g (ObservationType ValueLEObservationType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (ValueLE value1 value2)
-  mkGenFun g ValueLObservationType
+
+mkGenFun blocklyState g (ObservationType ValueLObservationType) =
+  mkGenFun' blocklyState g (ObservationType ValueLObservationType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (ValueLT value1 value2)
-  mkGenFun g ValueEqObservationType
+
+mkGenFun blocklyState g (ObservationType ValueEqObservationType) =
+  mkGenFun' blocklyState g (ObservationType ValueEqObservationType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (ValueEQ value1 value2)
-  mkGenFun g TrueObservationType $ \bs block -> pure TrueObs
-  mkGenFun g FalseObservationType $ \bs block -> pure FalseObs
-  -- values
-  mkGenFun g CurrentBlockType $ \bs block -> pure CurrentBlock
-  mkGenFun g CommittedValueType
+
+mkGenFun blocklyState g (ObservationType TrueObservationType) = mkGenFun' blocklyState g (ObservationType TrueObservationType) $ \bs block -> pure TrueObs
+
+mkGenFun blocklyState g (ObservationType FalseObservationType) = mkGenFun' blocklyState g (ObservationType FalseObservationType) $ \bs block -> pure FalseObs
+
+-- values
+mkGenFun blocklyState g (ValueType CurrentBlockType) = mkGenFun' blocklyState g (ValueType CurrentBlockType) $ \bs block -> pure CurrentBlock
+
+mkGenFun blocklyState g (ValueType CommittedValueType) =
+  mkGenFun' blocklyState g (ValueType CommittedValueType)
     $ \bs block -> do
         commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
         pure (Committed commitId)
-  mkGenFun g ConstValueType
+
+mkGenFun blocklyState g (ValueType ConstValueType) =
+  mkGenFun' blocklyState g (ValueType ConstValueType)
     $ \bs block -> do
         constant <- parse Parser.bigInteger =<< getFieldValue block "constant"
         pure (Constant constant)
-  mkGenFun g NegValueType
+
+mkGenFun blocklyState g (ValueType NegValueType) =
+  mkGenFun' blocklyState g (ValueType NegValueType)
     $ \bs block -> do
         value <- parse Parser.value =<< statementToCode g block "value"
         pure (NegValue value)
-  mkGenFun g AddValueType
+
+mkGenFun blocklyState g (ValueType AddValueType) =
+  mkGenFun' blocklyState g (ValueType AddValueType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (AddValue value1 value2)
-  mkGenFun g SubValueType
+
+mkGenFun blocklyState g (ValueType SubValueType) =
+  mkGenFun' blocklyState g (ValueType SubValueType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (SubValue value1 value2)
-  mkGenFun g MulValueType
+
+mkGenFun blocklyState g (ValueType MulValueType) =
+  mkGenFun' blocklyState g (ValueType MulValueType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         pure (MulValue value1 value2)
-  mkGenFun g DivValueType
+
+mkGenFun blocklyState g (ValueType DivValueType) =
+  mkGenFun' blocklyState g (ValueType DivValueType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         value3 <- parse Parser.value =<< statementToCode g block "value3"
         pure (DivValue value1 value2 value3)
-  mkGenFun g ModValueType
+
+mkGenFun blocklyState g (ValueType ModValueType) =
+  mkGenFun' blocklyState g (ValueType ModValueType)
     $ \bs block -> do
         value1 <- parse Parser.value =<< statementToCode g block "value1"
         value2 <- parse Parser.value =<< statementToCode g block "value2"
         value3 <- parse Parser.value =<< statementToCode g block "value3"
         pure (ModValue value1 value2 value3)
-  mkGenFun g FromChoiceValueType
+
+mkGenFun blocklyState g (ValueType FromChoiceValueType) =
+  mkGenFun' blocklyState g (ValueType FromChoiceValueType)
     $ \bs block -> do
         choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
         personId <- parse Parser.person =<< getFieldValue block "person_id"
@@ -912,15 +955,16 @@ buildGenerator blocklyState = do
         let
           idChoice = IdChoice {choice: choiceId, person: personId}
         pure (ValueFromChoice idChoice value)
-  mkGenFun g FromOracleValueType
+
+mkGenFun blocklyState g (ValueType FromOracleValueType) =
+  mkGenFun' blocklyState g (ValueType FromOracleValueType)
     $ \bs block -> do
         oracleId <- parse Parser.idOracle =<< getFieldValue block "oracle_id"
         value <- parse Parser.value =<< statementToCode g block "value"
         pure (ValueFromOracle oracleId value)
-  pure g
-  where
-  mkGenFun :: forall a. Show a => Generator -> BlockType -> (BlocklyState -> Block -> Either String a) -> Effect Unit
-  mkGenFun g t f = insertGeneratorFunction blocklyState g (show t) (compose2 (rmap show) f)
+
+mkGenFun' :: forall a. Show a => BlocklyState -> Generator -> BlockType -> (BlocklyState -> Block -> Either String a) -> Effect Unit
+mkGenFun' blocklyState g t f = insertGeneratorFunction blocklyState g (show t) (compose2 (rmap show) f)
 
 buildBlocks :: (Workspace -> String -> Effect Block) -> BlocklyState -> Contract -> Effect Unit
 buildBlocks newBlock bs contract = do
@@ -929,12 +973,12 @@ buildBlocks newBlock bs contract = do
   let
     mContract = getBlockById bs.workspace "root_contract"
   rootBlock <- case mContract of
-    Nothing -> newBlock bs.workspace "contract"
+    Nothing -> newBlock bs.workspace (show BaseContractType)
     Just block -> pure block
   let
     inputs = inputList rootBlock
 
-    mInput = getInputWithName inputs "contract"
+    mInput = getInputWithName inputs (show BaseContractType)
   case mInput of
     Nothing -> pure unit
     Just i -> do

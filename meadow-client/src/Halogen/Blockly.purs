@@ -1,14 +1,19 @@
 module Halogen.Blockly where
 
-import Blockly (BlockDefinition, Div(..))
+import Blockly (BlockDefinition, ElementId(..))
 import Blockly as Blockly
 import Blockly.Generator (Generator, newBlock, workspaceToCode)
 import Blockly.Types as BT
 import Bootstrap (btn, btnInfo, btnSmall)
 import Control.Alt ((<|>))
+import Control.Monad ((*>))
+import Control.Monad.Maybe.Trans (MaybeT(..), lift, runMaybeT)
 import Data.Either (Either(..))
+import Data.Lens (Lens', use)
+import Data.Lens.Record (prop)
 import Data.Maybe (Maybe(..))
 import Data.NaturalTransformation (type (~>))
+import Data.Symbol (SProxy(..))
 import Effect.Class (class MonadEffect)
 import Effect.Class.Console (log)
 import Halogen (ClassName(..), Component, ComponentDSL, ComponentHTML, RefLabel(..), action, get, lifecycleComponent, liftEffect, modify, raise)
@@ -27,6 +32,12 @@ import Text.Parsing.Parser.Basic (parens)
 
 type BlocklyState
   = {blocklyState :: Maybe BT.BlocklyState, generator :: Maybe Generator}
+
+_blocklyState :: Lens' BlocklyState (Maybe BT.BlocklyState)
+_blocklyState = prop (SProxy :: SProxy "blocklyState")
+
+_generator :: Lens' BlocklyState (Maybe Generator)
+_generator = prop (SProxy :: SProxy "generator")
 
 data BlocklyQuery a
   = Inject (Array BlockDefinition) a
@@ -58,7 +69,7 @@ blockly blockDefinitions =
 
 eval :: forall m. MonadEffect m => BlocklyQuery ~> DSL m
 eval (Inject blockDefinitions next) = do
-  blocklyState <- liftEffect $ Blockly.createBlocklyInstance (Div "blocklyWorkspace") (Div "blocklyToolbox")
+  blocklyState <- liftEffect $ Blockly.createBlocklyInstance (ElementId "blocklyWorkspace") (ElementId "blocklyToolbox")
   liftEffect $ Blockly.addBlockTypes blocklyState blockDefinitions
   liftEffect $ Blockly.initializeWorkspace blocklyState
   generator <- liftEffect $ buildGenerator blocklyState
@@ -72,22 +83,18 @@ eval (Resize next) = do
 
 eval (SetData _ next) = pure next
 
-eval (GetCode next) = do
-  {blocklyState, generator} <- get
-  case blocklyState of
-    Nothing -> pure unit
-    Just bs -> case generator of
-      Nothing -> pure unit
-      Just g -> do
-        code <- liftEffect $ workspaceToCode bs g
-        let
-          result = runParser code (parens Parser.contract <|> Parser.contract)
-        case result of
-          Left e -> do
-            log (show e)
-            pure unit
-          Right contract -> raise $ CurrentCode (show (pretty contract))
-  pure next
+eval (GetCode next) = runMaybeT f *> pure next
+  where
+  f = do
+    blocklyState <- MaybeT $ use _blocklyState
+    generator <- MaybeT $ use _generator
+    lift do
+      code <- liftEffect $ workspaceToCode blocklyState generator
+      let
+        result = runParser code (parens Parser.contract <|> Parser.contract)
+      case result of
+        Left e -> log (show e)
+        Right contract -> raise $ CurrentCode (show (pretty contract))
 
 eval (SetCode code next) = do
   {blocklyState} <- get

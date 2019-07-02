@@ -1,7 +1,6 @@
 module Blockly where
 
 import Prelude
-
 import Blockly.Types (Block, Blockly, BlocklyState, Workspace)
 import Data.Function.Uncurried (Fn4, runFn4)
 import Data.Maybe (Maybe(..))
@@ -11,17 +10,55 @@ import Data.Traversable (class Foldable, traverse_)
 import Effect (Effect)
 import Effect.Uncurried (EffectFn1, EffectFn2, EffectFn3, runEffectFn1, runEffectFn2, runEffectFn3)
 import Foreign (Foreign)
+import Global (infinity)
 import Halogen.HTML (AttrName(..), ElemName(..), Node)
 import Halogen.HTML.Elements (element)
 import Halogen.HTML.Properties (IProp, attr)
 import Record as Record
 import Simple.JSON (class WriteForeign)
 import Simple.JSON as JSON
-import Text.PrettyPrint.Leijen (align)
+import Web.HTML (HTMLElement)
+
+type GridConfig
+  = { spacing :: Int
+  , length :: Int
+  , colour :: String
+  , snap :: Boolean
+  }
+
+type ZoomConfig
+  = { controls :: Boolean
+  , wheel :: Boolean
+  , startScale :: Number
+  , maxScale :: Number
+  , minScale :: Number
+  , scaleSpeed :: Number
+  }
+
+type WorkspaceConfig
+  = { toolbox :: HTMLElement
+  , collapse :: Boolean
+  , comments :: Boolean
+  , disable :: Boolean
+  , maxBlocks :: Number
+  , trashcan :: Boolean
+  , horizontalLayout :: Boolean
+  , toolboxPosition :: String
+  , css :: Boolean
+  , media :: String
+  , rtl :: Boolean
+  , scrollbars :: Boolean
+  , sounds :: Boolean
+  , oneBasedIndex :: Boolean
+  , zoom :: ZoomConfig
+  , grid :: GridConfig
+  }
+
+foreign import getElementById_ :: EffectFn1 String HTMLElement
 
 foreign import createBlocklyInstance_ :: Effect Blockly
 
-foreign import createWorkspace_ :: EffectFn3 Blockly String String Workspace
+foreign import createWorkspace_ :: EffectFn3 Blockly String WorkspaceConfig Workspace
 
 foreign import resizeBlockly_ :: EffectFn1 BlocklyState Unit
 
@@ -33,16 +70,48 @@ foreign import render_ :: EffectFn1 Workspace Unit
 
 foreign import getBlockById_ :: forall a. Fn4 (a -> Maybe a) (Maybe a) Workspace String (Maybe Block)
 
-newtype Div
-  = Div String
+newtype ElementId
+  = ElementId String
 
-derive instance newtypeDiv :: Newtype Div _
+derive instance newtypeElementId :: Newtype ElementId _
 
-createBlocklyInstance :: Div -> Div -> Effect BlocklyState
-createBlocklyInstance workspaceDiv toolboxDiv = do
+createBlocklyInstance :: ElementId -> ElementId -> Effect BlocklyState
+createBlocklyInstance workspaceElementId toolboxElementId = do
   blockly <- createBlocklyInstance_
-  workspace <- runEffectFn3 createWorkspace_ blockly (unwrap workspaceDiv) (unwrap toolboxDiv)
-  pure { blockly, workspace }
+  toolbox <- runEffectFn1 getElementById_ (unwrap toolboxElementId)
+  workspace <- runEffectFn3 createWorkspace_ blockly (unwrap workspaceElementId) (config toolbox)
+  pure {blockly, workspace}
+  where
+  config toolbox =
+    { toolbox: toolbox
+    , collapse: true
+    , comments: true
+    , disable: true
+    , maxBlocks: infinity
+    , trashcan: true
+    , horizontalLayout: false
+    , toolboxPosition: "start"
+    , css: true
+    , media: "https://blockly-demo.appspot.com/static/media/"
+    , rtl: false
+    , scrollbars: true
+    , sounds: true
+    , oneBasedIndex: true
+    , zoom:
+      { controls: true
+      , wheel: false
+      , startScale: 1.0
+      , maxScale: 3.0
+      , minScale: 0.3
+      , scaleSpeed: 1.2
+      }
+    , grid:
+      { spacing: 20
+      , length: 3
+      , colour: "#ccc"
+      , snap: true
+      }
+    }
 
 resize :: Maybe BlocklyState -> Effect Unit
 resize (Just blocklyState) = runEffectFn1 resizeBlockly_ blocklyState
@@ -176,13 +245,13 @@ defaultBlockDefinition =
   }
 
 xml :: forall p i. Node (id :: String, style :: String) p i
-xml props children = element (ElemName "xml") props children
+xml = element (ElemName "xml")
 
 category :: forall p i. Node (name :: String, colour :: String) p i
-category props children = element (ElemName "category") props children
+category = element (ElemName "category")
 
 block :: forall p i. Node (id :: String, type :: String, x :: String, y :: String) p i
-block props children = element (ElemName "block") props children
+block = element (ElemName "block")
 
 blockType :: forall i r. String -> IProp (type :: String | r) i
 blockType = attr (AttrName "type")

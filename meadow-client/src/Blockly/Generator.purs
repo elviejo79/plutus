@@ -73,12 +73,12 @@ mkGenerator :: BlocklyState -> String -> Effect Generator
 mkGenerator = runEffectFn2 mkGenerator_
 
 insertGeneratorFunction :: BlocklyState -> Generator -> String -> GeneratorFunction -> Effect Unit
-insertGeneratorFunction bs g k f = runEffectFn4 insertGeneratorFunction_ bs g k (compose2 (unsafePartial rightOrDie) f)
+insertGeneratorFunction bs g k f = runEffectFn4 insertGeneratorFunction_ bs g k (compose2 (unsafePartial unsafeFromRight) f)
 
-rightOrDie :: forall a. Partial => Either String a -> a
-rightOrDie (Right a) = a
+unsafeFromRight :: forall a. Partial => Either String a -> a
+unsafeFromRight (Right a) = a
 
-rightOrDie (Left e) = runFn1 unsafeThrowError_ e
+unsafeFromRight (Left e) = runFn1 unsafeThrowError_ e
 
 compose2 :: forall a b c d. (c -> d) -> (a -> b -> c) -> a -> b -> d
 compose2 = (<<<) <<< (<<<)

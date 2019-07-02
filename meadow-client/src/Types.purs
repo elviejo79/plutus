@@ -109,9 +109,9 @@ cpBlockly = cp3
 
 -----------------------------------------------------------
 data View
-  = Editor
+  = HaskellEditor
   | Simulation
-  | BlocklyV
+  | BlocklyEditor
 
 derive instance eqView :: Eq View
 
