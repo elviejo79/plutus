@@ -2,7 +2,7 @@ module Marlowe.Blockly where
 
 import Prelude
 import Blockly (AlignDirection(..), Arg(..), BlockDefinition(..), block, blockType, category, colour, defaultBlockDefinition, getBlockById, initializeWorkspace, name, render, style, x, xml, y)
-import Blockly.Generator (Generator, Input, clearWorkspace, compose2, connectToOutput, connectToPrevious, fieldName, fieldRow, getFieldValue, getInputWithName, inputList, inputName, insertGeneratorFunction, mkGenerator, setFieldText, statementToCode)
+import Blockly.Generator (Generator, Input, clearWorkspace, connectToOutput, connectToPrevious, fieldName, fieldRow, getFieldValue, getInputWithName, inputList, inputName, insertGeneratorFunction, mkGenerator, setFieldText, statementToCode)
 import Blockly.Types (Block, BlocklyState, Workspace)
 import Control.Alternative ((<|>))
 import Data.Array as Array
@@ -709,262 +709,173 @@ parse p = lmap show <<< flip runParser (parens p <|> p)
 buildGenerator :: BlocklyState -> Effect Generator
 buildGenerator blocklyState = do
   g <- mkGenerator blocklyState "Marlowe"
-  let
-    (blockTypes:: Array BlockType) = upFromIncluding bottom
-  traverse_ (mkGenFun blocklyState g) blockTypes
+  traverse_ (\t -> mkGenFun g t (baseContractDefinition g)) [BaseContractType]
+  traverse_ (\t -> mkGenFun g t (blockDefinition g t)) contractTypes
+  traverse_ (\t -> mkGenFun g t (blockDefinition g t)) observationTypes
+  traverse_ (\t -> mkGenFun g t (blockDefinition g t)) valueTypes
   pure g
 
-mkGenFun :: BlocklyState -> Generator -> BlockType -> Effect Unit
-mkGenFun blocklyState g BaseContractType =
-  mkGenFun' blocklyState g BaseContractType
-    $ \bs block -> parse Parser.contract =<< statementToCode g block (show BaseContractType)
+mkGenFun :: forall a t. Show a => Show t => Generator -> t -> (Block -> Either String a) -> Effect Unit
+mkGenFun generator blockType f = insertGeneratorFunction generator (show blockType) ((rmap show) <<< f)
 
--- contracts
-mkGenFun blocklyState g (ContractType NullContractType) = mkGenFun' blocklyState g (ContractType NullContractType) $ \_ _ -> pure Null
+class HasBlockDefinition a b | a -> b where
+  blockDefinition :: Generator -> a -> Block -> Either String b
 
-mkGenFun blocklyState g (ContractType CommitContractType) =
-  mkGenFun' blocklyState g (ContractType CommitContractType)
-    $ \bs block -> do
-        actionId <- parse Parser.idAction =<< getFieldValue block "action_id"
-        commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
-        personId <- parse Parser.person =<< getFieldValue block "person_id"
-        ammount <- parse Parser.value =<< statementToCode g block "ammount"
-        endExpiration <- parse Parser.timeout =<< getFieldValue block "end_expiration"
-        startExpiration <- parse Parser.timeout =<< getFieldValue block "start_expiration"
-        contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
-        contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
-        pure (Commit actionId commitId personId ammount endExpiration startExpiration contract1 contract2)
+baseContractDefinition :: Generator -> Block -> Either String Contract
+baseContractDefinition g block = parse Parser.contract =<< statementToCode g block (show BaseContractType)
 
-mkGenFun blocklyState g (ContractType PayContractType) =
-  mkGenFun' blocklyState g (ContractType PayContractType)
-    $ \bs block -> do
-        actionId <- parse Parser.idAction =<< getFieldValue block "action_id"
-        commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
-        payee <- parse Parser.person =<< getFieldValue block "payee_id"
-        ammount <- parse Parser.value =<< statementToCode g block "ammount"
-        timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
-        contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
-        contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
-        pure (Pay actionId commitId payee ammount timeout contract1 contract2)
+instance hasBlockDefinitionContract :: HasBlockDefinition ContractType Contract where
+  blockDefinition g NullContractType _ = pure Null
+  blockDefinition g CommitContractType block = do
+    actionId <- parse Parser.idAction =<< getFieldValue block "action_id"
+    commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
+    personId <- parse Parser.person =<< getFieldValue block "person_id"
+    ammount <- parse Parser.value =<< statementToCode g block "ammount"
+    endExpiration <- parse Parser.timeout =<< getFieldValue block "end_expiration"
+    startExpiration <- parse Parser.timeout =<< getFieldValue block "start_expiration"
+    contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
+    contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
+    pure (Commit actionId commitId personId ammount endExpiration startExpiration contract1 contract2)
+  blockDefinition g PayContractType block = do
+    actionId <- parse Parser.idAction =<< getFieldValue block "action_id"
+    commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
+    payee <- parse Parser.person =<< getFieldValue block "payee_id"
+    ammount <- parse Parser.value =<< statementToCode g block "ammount"
+    timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
+    contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
+    contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
+    pure (Pay actionId commitId payee ammount timeout contract1 contract2)
+  blockDefinition g BothContractType block = do
+    contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
+    contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
+    pure (Both contract1 contract2)
+  blockDefinition g ChoiceContractType block = do
+    observation <- parse Parser.observation =<< statementToCode g block "observation"
+    contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
+    contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
+    pure (Choice observation contract1 contract2)
+  blockDefinition g WhenContractType block = do
+    observation <- parse Parser.observation =<< statementToCode g block "observation"
+    timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
+    contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
+    contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
+    pure (When observation timeout contract1 contract2)
+  blockDefinition g WhileContractType block = do
+    observation <- parse Parser.observation =<< statementToCode g block "observation"
+    timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
+    contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
+    contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
+    pure (While observation timeout contract1 contract2)
+  blockDefinition g ScaleContractType block = do
+    scale1 <- parse Parser.value =<< statementToCode g block "scale1"
+    scale2 <- parse Parser.value =<< statementToCode g block "scale2"
+    scale3 <- parse Parser.value =<< statementToCode g block "scale3"
+    contract <- parse Parser.contract =<< statementToCode g block "contract"
+    pure (Scale scale1 scale2 scale3 contract)
+  blockDefinition g LetContractType block = do
+    letLabel <- parse Parser.bigInteger =<< getFieldValue block "let_label"
+    contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
+    contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
+    pure (Let letLabel contract1 contract2)
+  blockDefinition g UseContractType block = do
+    letLabel <- parse Parser.bigInteger =<< getFieldValue block "let_label"
+    pure (Use letLabel)
 
-mkGenFun blocklyState g (ContractType BothContractType) =
-  mkGenFun' blocklyState g (ContractType BothContractType)
-    $ \bs block -> do
-        contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
-        contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
-        pure (Both contract1 contract2)
+instance hasBlockDefinitionObservation :: HasBlockDefinition ObservationType Observation where
+  blockDefinition g BelowTimeoutObservationType block = do
+    timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
+    pure (BelowTimeout timeout)
+  blockDefinition g AndObservationType block = do
+    observation1 <- parse Parser.observation =<< statementToCode g block "observation1"
+    observation2 <- parse Parser.observation =<< statementToCode g block "observation2"
+    pure (AndObs observation1 observation2)
+  blockDefinition g OrObservationType block = do
+    observation1 <- parse Parser.observation =<< statementToCode g block "observation1"
+    observation2 <- parse Parser.observation =<< statementToCode g block "observation2"
+    pure (OrObs observation1 observation2)
+  blockDefinition g NotObservationType block = do
+    observation <- parse Parser.observation =<< statementToCode g block "observation"
+    pure (NotObs observation)
+  blockDefinition g ChoseThisObservationType block = do
+    choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
+    personId <- parse Parser.person =<< getFieldValue block "person_id"
+    choice <- parse Parser.choice =<< getFieldValue block "choice"
+    let
+      idChoice = IdChoice {choice: choiceId, person: personId}
+    pure (ChoseThis idChoice choice)
+  blockDefinition g ChoseObservationType block = do
+    choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
+    personId <- parse Parser.person =<< getFieldValue block "person_id"
+    let
+      idChoice = IdChoice {choice: choiceId, person: personId}
+    pure (ChoseSomething idChoice)
+  blockDefinition g ValueGEObservationType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (ValueGE value1 value2)
+  blockDefinition g ValueGObservationType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (ValueGT value1 value2)
+  blockDefinition g ValueLEObservationType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (ValueLE value1 value2)
+  blockDefinition g ValueLObservationType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (ValueLT value1 value2)
+  blockDefinition g ValueEqObservationType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (ValueEQ value1 value2)
+  blockDefinition g TrueObservationType block = pure TrueObs
+  blockDefinition g FalseObservationType block = pure FalseObs
 
-mkGenFun blocklyState g (ContractType ChoiceContractType) =
-  mkGenFun' blocklyState g (ContractType ChoiceContractType)
-    $ \bs block -> do
-        observation <- parse Parser.observation =<< statementToCode g block "observation"
-        contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
-        contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
-        pure (Choice observation contract1 contract2)
-
-mkGenFun blocklyState g (ContractType WhenContractType) =
-  mkGenFun' blocklyState g (ContractType WhenContractType)
-    $ \bs block -> do
-        observation <- parse Parser.observation =<< statementToCode g block "observation"
-        timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
-        contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
-        contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
-        pure (When observation timeout contract1 contract2)
-
-mkGenFun blocklyState g (ContractType WhileContractType) =
-  mkGenFun' blocklyState g (ContractType WhileContractType)
-    $ \bs block -> do
-        observation <- parse Parser.observation =<< statementToCode g block "observation"
-        timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
-        contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
-        contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
-        pure (While observation timeout contract1 contract2)
-
-mkGenFun blocklyState g (ContractType ScaleContractType) =
-  mkGenFun' blocklyState g (ContractType ScaleContractType)
-    $ \bs block -> do
-        scale1 <- parse Parser.value =<< statementToCode g block "scale1"
-        scale2 <- parse Parser.value =<< statementToCode g block "scale2"
-        scale3 <- parse Parser.value =<< statementToCode g block "scale3"
-        contract <- parse Parser.contract =<< statementToCode g block "contract"
-        pure (Scale scale1 scale2 scale3 contract)
-
-mkGenFun blocklyState g (ContractType LetContractType) =
-  mkGenFun' blocklyState g (ContractType LetContractType)
-    $ \bs block -> do
-        letLabel <- parse Parser.bigInteger =<< getFieldValue block "let_label"
-        contract1 <- parse Parser.contract =<< statementToCode g block "contract1"
-        contract2 <- parse Parser.contract =<< statementToCode g block "contract2"
-        pure (Let letLabel contract1 contract2)
-
-mkGenFun blocklyState g (ContractType UseContractType) =
-  mkGenFun' blocklyState g (ContractType UseContractType)
-    $ \bs block -> do
-        letLabel <- parse Parser.bigInteger =<< getFieldValue block "let_label"
-        pure (Use letLabel)
-
--- observations
-mkGenFun blocklyState g (ObservationType BelowTimeoutObservationType) =
-  mkGenFun' blocklyState g (ObservationType BelowTimeoutObservationType)
-    $ \bs block -> do
-        timeout <- parse Parser.timeout =<< getFieldValue block "timeout"
-        pure (BelowTimeout timeout)
-
-mkGenFun blocklyState g (ObservationType AndObservationType) =
-  mkGenFun' blocklyState g (ObservationType AndObservationType)
-    $ \bs block -> do
-        observation1 <- parse Parser.observation =<< statementToCode g block "observation1"
-        observation2 <- parse Parser.observation =<< statementToCode g block "observation2"
-        pure (AndObs observation1 observation2)
-
-mkGenFun blocklyState g (ObservationType OrObservationType) =
-  mkGenFun' blocklyState g (ObservationType OrObservationType)
-    $ \bs block -> do
-        observation1 <- parse Parser.observation =<< statementToCode g block "observation1"
-        observation2 <- parse Parser.observation =<< statementToCode g block "observation2"
-        pure (OrObs observation1 observation2)
-
-mkGenFun blocklyState g (ObservationType NotObservationType) =
-  mkGenFun' blocklyState g (ObservationType NotObservationType)
-    $ \bs block -> do
-        observation <- parse Parser.observation =<< statementToCode g block "observation"
-        pure (NotObs observation)
-
-mkGenFun blocklyState g (ObservationType ChoseThisObservationType) =
-  mkGenFun' blocklyState g (ObservationType ChoseThisObservationType)
-    $ \bs block -> do
-        choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
-        personId <- parse Parser.person =<< getFieldValue block "person_id"
-        choice <- parse Parser.choice =<< getFieldValue block "choice"
-        let
-          idChoice = IdChoice {choice: choiceId, person: personId}
-        pure (ChoseThis idChoice choice)
-
-mkGenFun blocklyState g (ObservationType ChoseObservationType) =
-  mkGenFun' blocklyState g (ObservationType ChoseObservationType)
-    $ \bs block -> do
-        choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
-        personId <- parse Parser.person =<< getFieldValue block "person_id"
-        let
-          idChoice = IdChoice {choice: choiceId, person: personId}
-        pure (ChoseSomething idChoice)
-
-mkGenFun blocklyState g (ObservationType ValueGEObservationType) =
-  mkGenFun' blocklyState g (ObservationType ValueGEObservationType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (ValueGE value1 value2)
-
-mkGenFun blocklyState g (ObservationType ValueGObservationType) =
-  mkGenFun' blocklyState g (ObservationType ValueGObservationType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (ValueGT value1 value2)
-
-mkGenFun blocklyState g (ObservationType ValueLEObservationType) =
-  mkGenFun' blocklyState g (ObservationType ValueLEObservationType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (ValueLE value1 value2)
-
-mkGenFun blocklyState g (ObservationType ValueLObservationType) =
-  mkGenFun' blocklyState g (ObservationType ValueLObservationType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (ValueLT value1 value2)
-
-mkGenFun blocklyState g (ObservationType ValueEqObservationType) =
-  mkGenFun' blocklyState g (ObservationType ValueEqObservationType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (ValueEQ value1 value2)
-
-mkGenFun blocklyState g (ObservationType TrueObservationType) = mkGenFun' blocklyState g (ObservationType TrueObservationType) $ \bs block -> pure TrueObs
-
-mkGenFun blocklyState g (ObservationType FalseObservationType) = mkGenFun' blocklyState g (ObservationType FalseObservationType) $ \bs block -> pure FalseObs
-
--- values
-mkGenFun blocklyState g (ValueType CurrentBlockType) = mkGenFun' blocklyState g (ValueType CurrentBlockType) $ \bs block -> pure CurrentBlock
-
-mkGenFun blocklyState g (ValueType CommittedValueType) =
-  mkGenFun' blocklyState g (ValueType CommittedValueType)
-    $ \bs block -> do
-        commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
-        pure (Committed commitId)
-
-mkGenFun blocklyState g (ValueType ConstValueType) =
-  mkGenFun' blocklyState g (ValueType ConstValueType)
-    $ \bs block -> do
-        constant <- parse Parser.bigInteger =<< getFieldValue block "constant"
-        pure (Constant constant)
-
-mkGenFun blocklyState g (ValueType NegValueType) =
-  mkGenFun' blocklyState g (ValueType NegValueType)
-    $ \bs block -> do
-        value <- parse Parser.value =<< statementToCode g block "value"
-        pure (NegValue value)
-
-mkGenFun blocklyState g (ValueType AddValueType) =
-  mkGenFun' blocklyState g (ValueType AddValueType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (AddValue value1 value2)
-
-mkGenFun blocklyState g (ValueType SubValueType) =
-  mkGenFun' blocklyState g (ValueType SubValueType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (SubValue value1 value2)
-
-mkGenFun blocklyState g (ValueType MulValueType) =
-  mkGenFun' blocklyState g (ValueType MulValueType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        pure (MulValue value1 value2)
-
-mkGenFun blocklyState g (ValueType DivValueType) =
-  mkGenFun' blocklyState g (ValueType DivValueType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        value3 <- parse Parser.value =<< statementToCode g block "value3"
-        pure (DivValue value1 value2 value3)
-
-mkGenFun blocklyState g (ValueType ModValueType) =
-  mkGenFun' blocklyState g (ValueType ModValueType)
-    $ \bs block -> do
-        value1 <- parse Parser.value =<< statementToCode g block "value1"
-        value2 <- parse Parser.value =<< statementToCode g block "value2"
-        value3 <- parse Parser.value =<< statementToCode g block "value3"
-        pure (ModValue value1 value2 value3)
-
-mkGenFun blocklyState g (ValueType FromChoiceValueType) =
-  mkGenFun' blocklyState g (ValueType FromChoiceValueType)
-    $ \bs block -> do
-        choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
-        personId <- parse Parser.person =<< getFieldValue block "person_id"
-        value <- parse Parser.value =<< statementToCode g block "value"
-        let
-          idChoice = IdChoice {choice: choiceId, person: personId}
-        pure (ValueFromChoice idChoice value)
-
-mkGenFun blocklyState g (ValueType FromOracleValueType) =
-  mkGenFun' blocklyState g (ValueType FromOracleValueType)
-    $ \bs block -> do
-        oracleId <- parse Parser.idOracle =<< getFieldValue block "oracle_id"
-        value <- parse Parser.value =<< statementToCode g block "value"
-        pure (ValueFromOracle oracleId value)
-
-mkGenFun' :: forall a. Show a => BlocklyState -> Generator -> BlockType -> (BlocklyState -> Block -> Either String a) -> Effect Unit
-mkGenFun' blocklyState g t f = insertGeneratorFunction blocklyState g (show t) (compose2 (rmap show) f)
+instance hasBlockDefinitionValue :: HasBlockDefinition ValueType Value where
+  blockDefinition g CurrentBlockType block = pure CurrentBlock
+  blockDefinition g CommittedValueType block = do
+    commitId <- parse Parser.idCommit =<< getFieldValue block "commit_id"
+    pure (Committed commitId)
+  blockDefinition g ConstValueType block = do
+    constant <- parse Parser.bigInteger =<< getFieldValue block "constant"
+    pure (Constant constant)
+  blockDefinition g NegValueType block = do
+    value <- parse Parser.value =<< statementToCode g block "value"
+    pure (NegValue value)
+  blockDefinition g AddValueType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (AddValue value1 value2)
+  blockDefinition g SubValueType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (SubValue value1 value2)
+  blockDefinition g MulValueType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    pure (MulValue value1 value2)
+  blockDefinition g DivValueType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    value3 <- parse Parser.value =<< statementToCode g block "value3"
+    pure (DivValue value1 value2 value3)
+  blockDefinition g ModValueType block = do
+    value1 <- parse Parser.value =<< statementToCode g block "value1"
+    value2 <- parse Parser.value =<< statementToCode g block "value2"
+    value3 <- parse Parser.value =<< statementToCode g block "value3"
+    pure (ModValue value1 value2 value3)
+  blockDefinition g FromChoiceValueType block = do
+    choiceId <- parse Parser.bigInteger =<< getFieldValue block "choice_id"
+    personId <- parse Parser.person =<< getFieldValue block "person_id"
+    value <- parse Parser.value =<< statementToCode g block "value"
+    let
+      idChoice = IdChoice {choice: choiceId, person: personId}
+    pure (ValueFromChoice idChoice value)
+  blockDefinition g FromOracleValueType block = do
+    oracleId <- parse Parser.idOracle =<< getFieldValue block "oracle_id"
+    value <- parse Parser.value =<< statementToCode g block "value"
+    pure (ValueFromOracle oracleId value)
 
 buildBlocks :: (Workspace -> String -> Effect Block) -> BlocklyState -> Contract -> Effect Unit
 buildBlocks newBlock bs contract = do

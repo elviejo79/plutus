@@ -1,17 +1,18 @@
 module Blockly.Generator where
 
 import Prelude
+
 import Blockly.Types (Block, BlocklyState, Workspace)
 import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Function.Uncurried (Fn1, Fn4, Fn5, Fn6, runFn1, runFn4, runFn5, runFn6)
 import Data.Maybe (Maybe)
 import Effect (Effect)
-import Effect.Uncurried (EffectFn1, EffectFn2, EffectFn4, runEffectFn1, runEffectFn2, runEffectFn4)
+import Effect.Uncurried (EffectFn1, EffectFn2, EffectFn3, runEffectFn1, runEffectFn2, runEffectFn3)
 import Partial.Unsafe (unsafePartial)
 
 type GeneratorFunction
-  = BlocklyState -> Block -> Either String String
+  = Block -> Either String String
 
 data Order
   = Atomic
@@ -36,7 +37,7 @@ foreign import valueToCode_ :: forall a. Fn6 (String -> Either String a) (a -> E
 
 foreign import mkGenerator_ :: EffectFn2 BlocklyState String Generator
 
-foreign import insertGeneratorFunction_ :: EffectFn4 BlocklyState Generator String (BlocklyState -> Block -> String) Unit
+foreign import insertGeneratorFunction_ :: EffectFn3 Generator String (Block -> String) Unit
 
 foreign import workspaceToCode_ :: EffectFn2 BlocklyState Generator String
 
@@ -72,16 +73,14 @@ valueToCode g b v o = runFn6 valueToCode_ Left Right g b v (toNumber o)
 mkGenerator :: BlocklyState -> String -> Effect Generator
 mkGenerator = runEffectFn2 mkGenerator_
 
-insertGeneratorFunction :: BlocklyState -> Generator -> String -> GeneratorFunction -> Effect Unit
-insertGeneratorFunction bs g k f = runEffectFn4 insertGeneratorFunction_ bs g k (compose2 (unsafePartial unsafeFromRight) f)
+insertGeneratorFunction :: Generator -> String -> (Block -> Either String String) -> Effect Unit
+insertGeneratorFunction generator key f = runEffectFn3 insertGeneratorFunction_ generator key ((unsafePartial unsafeFromRight) <<< f)
 
+-- | This will throw the Left value in a result as a runtime exception
 unsafeFromRight :: forall a. Partial => Either String a -> a
 unsafeFromRight (Right a) = a
 
 unsafeFromRight (Left e) = runFn1 unsafeThrowError_ e
-
-compose2 :: forall a b c d. (c -> d) -> (a -> b -> c) -> a -> b -> d
-compose2 = (<<<) <<< (<<<)
 
 workspaceToCode :: BlocklyState -> Generator -> Effect String
 workspaceToCode = runEffectFn2 workspaceToCode_

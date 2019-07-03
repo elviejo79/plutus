@@ -34,8 +34,8 @@ exports.mkGenerator_ = function (blocklyState, name) {
     return new blocklyState.blockly.Generator(name);
 }
 
-exports.insertGeneratorFunction_ = function (blocklyState, generator, key, f) {
-    generator[key] = f(blocklyState.blockly);
+exports.insertGeneratorFunction_ = function (generator, key, f) {
+    generator[key] = f;
 }
 
 exports.workspaceToCode_ = function (blocklyState, generator) {

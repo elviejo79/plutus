@@ -37,7 +37,7 @@ import Halogen (Component, action)
 import Halogen as H
 import Halogen.Blockly (BlocklyMessage(..), blockly)
 import Halogen.Component (ParentHTML)
-import Halogen.HTML (ClassName(ClassName), HTML, a, button, code_, div, div_, h1, h2, pre, slot', strong_, text)
+import Halogen.HTML (ClassName(ClassName), HTML, a, button, code_, div, div_, h1, pre, slot', strong_, text)
 import Halogen.HTML.Events (input, input_, onClick)
 import Halogen.HTML.Properties (class_, classes, disabled, href)
 import Halogen.Query (HalogenM)
