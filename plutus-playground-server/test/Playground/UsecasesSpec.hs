@@ -28,7 +28,7 @@ import qualified Playground.Interpreter       as PI
 import           Playground.Interpreter.Util  (TraceResult)
 import           Playground.Usecases          (crowdfunding, game, messages, vesting)
 import           Schema                       (Constructor (Record), ConstructorName (ConstructorName),
-                                               DataType (DataType), Reference (Reference))
+                                               DataType (DataType), Reference (Reference), TypeName (TypeName))
 import           Test.Hspec                   (Spec, describe, it, shouldBe, shouldSatisfy)
 import           Wallet.Emulator.Types        (Wallet (Wallet), walletPubKey)
 
@@ -70,16 +70,25 @@ vestingSpec =
                       { functionName = Fn "vestFunds"
                       , argumentSchema =
                             [ DataType
-                                  "Main.Vesting"
+                                  (TypeName "Main" "Vesting")
                                   []
                                   [ Record
                                         (ConstructorName "Vesting")
                                         [ ( "vestingTranche1"
-                                          , Reference (TypeName "Main" "VestingTranche"))
+                                          , Reference
+                                                (TypeName
+                                                     "Main"
+                                                     "VestingTranche"))
                                         , ( "vestingTranche2"
-                                          , Reference (TypeName "Main" "VestingTranche"))
+                                          , Reference
+                                                (TypeName
+                                                     "Main"
+                                                     "VestingTranche"))
                                         , ( "vestingOwner"
-                                          , Reference (TypeName "Ledger.Crypto" "PubKey"))
+                                          , Reference
+                                                (TypeName
+                                                     "Ledger.Crypto"
+                                                     "PubKey"))
                                         ]
                                   ]
                             ]
@@ -88,16 +97,25 @@ vestingSpec =
                       { functionName = Fn "registerVestingScheme"
                       , argumentSchema =
                             [ DataType
-                                  "Main.Vesting"
+                                  (TypeName "Main" "Vesting")
                                   []
                                   [ Record
                                         (ConstructorName "Vesting")
                                         [ ( "vestingTranche1"
-                                          , Reference (TypeName "Main" "VestingTranche"))
+                                          , Reference
+                                                (TypeName
+                                                     "Main"
+                                                     "VestingTranche"))
                                         , ( "vestingTranche2"
-                                          , Reference (TypeName "Main" "VestingTranche"))
+                                          , Reference
+                                                (TypeName
+                                                     "Main"
+                                                     "VestingTranche"))
                                         , ( "vestingOwner"
-                                          , Reference (TypeName "Ledger.Crypto" "PubKey"))
+                                          , Reference
+                                                (TypeName
+                                                     "Ledger.Crypto"
+                                                     "PubKey"))
                                         ]
                                   ]
                             ]
@@ -106,25 +124,37 @@ vestingSpec =
                       { functionName = Fn "withdraw"
                       , argumentSchema =
                             [ DataType
-                                  "Main.Vesting"
+                                  (TypeName "Main" "Vesting")
                                   []
                                   [ Record
                                         (ConstructorName "Vesting")
                                         [ ( "vestingTranche1"
-                                          , Reference (TypeName "Main" "VestingTranche"))
+                                          , Reference
+                                                (TypeName
+                                                     "Main"
+                                                     "VestingTranche"))
                                         , ( "vestingTranche2"
-                                          , Reference (TypeName "Main" "VestingTranche"))
+                                          , Reference
+                                                (TypeName
+                                                     "Main"
+                                                     "VestingTranche"))
                                         , ( "vestingOwner"
-                                          , Reference (TypeName "Ledger.Crypto" "PubKey"))
+                                          , Reference
+                                                (TypeName
+                                                     "Ledger.Crypto"
+                                                     "PubKey"))
                                         ]
                                   ]
                             , DataType
-                                  "Ledger.Value.Value"
+                                  (TypeName "Ledger.Value" "Value")
                                   []
                                   [ Record
                                         (ConstructorName "Value")
                                         [ ( "getValue"
-                                          , Reference (TypeName "Language.PlutusTx.AssocMap" "Map"))
+                                          , Reference
+                                                (TypeName
+                                                     "Language.PlutusTx.AssocMap"
+                                                     "Map"))
                                         ]
                                   ]
                             ]
@@ -133,20 +163,25 @@ vestingSpec =
                       { functionName = Fn "payToWallet_"
                       , argumentSchema =
                             [ DataType
-                                  "Ledger.Value.Value"
+                                  (TypeName "Ledger.Value" "Value")
                                   []
                                   [ Record
                                         (ConstructorName "Value")
                                         [ ( "getValue"
-                                          , Reference (TypeName "Language.PlutusTx.AssocMap" "Map"))
+                                          , Reference
+                                                (TypeName
+                                                     "Language.PlutusTx.AssocMap"
+                                                     "Map"))
                                         ]
                                   ]
                             , DataType
-                                  "Wallet.Emulator.Types.Wallet"
+                                  (TypeName "Wallet.Emulator.Types" "Wallet")
                                   []
                                   [ Record
                                         (ConstructorName "Wallet")
-                                        [("getWallet", Reference "Int")]
+                                        [ ( "getWallet"
+                                          , Reference (TypeName "" "Int"))
+                                        ]
                                   ]
                             ]
                       }
