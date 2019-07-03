@@ -10,7 +10,7 @@ import           Language.Haskell.Interpreter (CompilationError (CompilationErro
                                                text)
 import           Ledger.Interval              (Interval)
 import           Ledger.Value                 (Value)
-import           Playground.API               (parseErrorText)
+import           Playground.API               (parseErrorText, adaCurrency)
 import           Test.Hspec                   (Spec, describe, it, shouldBe)
 
 spec :: Spec
