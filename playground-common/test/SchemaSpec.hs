@@ -12,11 +12,9 @@ import           Data.Proxy   (Proxy (Proxy))
 import           Data.Text    (Text)
 import           GHC.Generics (Generic)
 import           Schema       (Constructor (Constructor, Record), ConstructorName (ConstructorName),
-                               DataType (DataType), Reference (Reference), ToSchema, ToTypeName, toSchema)
-import           Test.Hspec   (Spec, describe, hspec, it, shouldBe)
-
-k :: IO ()
-k = hspec spec
+                               DataType (DataType), Reference (Reference), ToSchema, ToTypeName, TypeName (TypeName),
+                               toSchema)
+import           Test.Hspec   (Spec, describe, it, shouldBe)
 
 spec :: Spec
 spec = toSchemaSpec
@@ -24,37 +22,45 @@ spec = toSchemaSpec
 toSchemaSpec :: Spec
 toSchemaSpec =
     describe "To schema" $ do
-        it "Int" $ toSchema (Proxy :: Proxy Int) `shouldBe` DataType "Int" [] []
+        it "Int" $
+            toSchema (Proxy :: Proxy Int) `shouldBe`
+            DataType (TypeName "" "Int") [] []
         it "Integer" $
-            toSchema (Proxy :: Proxy Int) `shouldBe` DataType "Int" [] []
+            toSchema (Proxy :: Proxy Int) `shouldBe`
+            DataType (TypeName "" "Int") [] []
         it "String" $
-            toSchema (Proxy :: Proxy String) `shouldBe` DataType "String" [] []
+            toSchema (Proxy :: Proxy String) `shouldBe`
+            DataType (TypeName "" "String") [] []
         it "Text" $
-            toSchema (Proxy :: Proxy Text) `shouldBe` DataType "String" [] []
+            toSchema (Proxy :: Proxy Text) `shouldBe`
+            DataType (TypeName "" "String") [] []
         it "Hash" $
             toSchema (Proxy @(Digest SHA256)) `shouldBe`
-            DataType "Crypto.Hash.Digest" [] []
+            DataType (TypeName "Crypto.Hash" "Digest") [] []
         it "Array Int" $
             toSchema (Proxy :: Proxy [Int]) `shouldBe`
-            DataType "List" [] [Constructor "List" [Reference "Int"]]
+            DataType
+                (TypeName "Data.List" "List")
+                []
+                [Constructor "List" [Reference (TypeName "" "Int")]]
         it "Maybe String" $
             toSchema (Proxy :: Proxy (Maybe String)) `shouldBe`
             DataType
-                "GHC.Maybe.Maybe"
+                (TypeName "GHC.Maybe" "Maybe")
                 []
                 [ Constructor "Nothing" []
-                , Constructor "Just" [Reference "String"]
+                , Constructor "Just" [Reference (TypeName "" "String")]
                 ]
         it "User" $
             toSchema (Proxy :: Proxy User) `shouldBe`
             DataType
-                "SchemaSpec.User"
+                (TypeName "SchemaSpec" "User")
                 []
                 [ Record
                       (ConstructorName "User")
-                      [ ("userName", Reference "String")
-                      , ("userAge", Reference "Int")
-                      , ("userAlive", Reference "Bool")
+                      [ ("userName", Reference (TypeName "" "String"))
+                      , ("userAge", Reference (TypeName "" "Int"))
+                      , ("userAlive", Reference (TypeName "" "Bool"))
                       ]
                 ]
 

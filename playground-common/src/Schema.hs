@@ -26,7 +26,7 @@ module Schema
     , Reference(..)
     ) where
 
-import           Control.Newtype.Generics (Newtype, pack, unpack)
+import           Control.Newtype.Generics (Newtype)
 import           Crypto.Hash              (Digest)
 import           Data.Aeson               (FromJSON, ToJSON)
 import qualified Data.ByteString          as BS
@@ -38,8 +38,7 @@ import           Data.String              (IsString, fromString)
 import           Data.Text                (Text)
 import qualified Data.Text                as Text
 import           GHC.Generics             ((:*:) ((:*:)), (:+:), C1, D1, Datatype, Generic, K1, M1 (M1), Rep, S1,
-                                           Selector, U1, V1, conIsRecord, conName, datatypeName, from, moduleName,
-                                           selName)
+                                           Selector, U1, V1, conIsRecord, conName, datatypeName, from, selName)
 import qualified GHC.Generics             as GHC
 
 {-# ANN module ("HLint: ignore Avoid restricted function" :: Text) #-}
@@ -79,18 +78,15 @@ data Constructor
 newtype Reference =
     Reference TypeName
     deriving (Eq, Show, Generic)
-    deriving anyclass (FromJSON, ToJSON,Newtype)
-
-instance IsString Reference where
-    fromString = Reference . fromString
-
-newtype TypeName =
-    TypeName Text
-    deriving (Eq, Show, Generic)
     deriving anyclass (FromJSON, ToJSON, Newtype)
 
-instance IsString TypeName where
-    fromString = TypeName . Text.pack
+data TypeName =
+    TypeName
+        { moduleName :: Text
+        , typeName   :: Text
+        }
+    deriving (Eq, Show, Generic)
+    deriving anyclass (FromJSON, ToJSON)
 
 newtype Parameter =
     Parameter Text
@@ -116,13 +112,11 @@ class ToTypeName a where
     toTypeName = genericTypeName . from
 
 instance ToTypeName (a, b) where
-    toTypeName _ = TypeName "Tuple"
+    toTypeName _ = TypeName "" "Tuple"
 
 instance ToTypeName a => ToTypeName (Proxy a) where
     toTypeName _ = toTypeName (undefined :: a)
 
--- instance Datatype i => ToTypeName (D1 i f a) where
---     toTypeName d = TypeName $ Text.pack $ moduleName d <> "." <> datatypeName d
 instance ToTypeName Text where
     toTypeName _ = toTypeName (Proxy @String)
 
@@ -133,25 +127,25 @@ instance ToTypeName LBS.ByteString where
     toTypeName _ = toTypeName (Proxy @String)
 
 instance ToTypeName Char where
-    toTypeName _ = TypeName "Char"
+    toTypeName _ = TypeName "" "Char"
 
 instance ToTypeName Int where
-    toTypeName _ = TypeName "Int"
+    toTypeName _ = TypeName "" "Int"
 
 instance ToTypeName Integer where
     toTypeName _ = toTypeName (Proxy @Int)
 
 instance ToTypeName Bool where
-    toTypeName _ = TypeName "Bool"
+    toTypeName _ = TypeName "" "Bool"
 
 instance ToTypeName (Map k v) where
-    toTypeName _ = TypeName "Data.Map"
+    toTypeName _ = TypeName "Data.Map" "Map"
 
 instance ToTypeName (Maybe a) where
-    toTypeName _ = TypeName "Maybe"
+    toTypeName _ = TypeName "Data.Maybe" "Maybe"
 
 instance ToTypeName (Digest a) where
-    toTypeName _ = TypeName "Crypto.Hash.Digest"
+    toTypeName _ = TypeName "Crypto.Hash" "Digest"
 
 ------------------------------------------------------------
 class GenericTypeName f where
@@ -159,7 +153,7 @@ class GenericTypeName f where
 
 instance (Datatype i) => GenericTypeName (D1 i f) where
     genericTypeName d =
-        TypeName $ Text.pack $ moduleName d <> "." <> datatypeName d
+        TypeName (Text.pack (GHC.moduleName d)) (Text.pack (datatypeName d))
 
 ------------------------------------------------------------
 class ToSchema a where
@@ -191,7 +185,7 @@ instance (ToTypeName a, ToTypeName b) => ToSchema (a, b) where
             (toTypeName p)
             []
             [ Constructor
-                  (pack (unpack (toTypeName p)))
+                  (ConstructorName (typeName (toTypeName p)))
                   [ Reference (toTypeName (Proxy @a))
                   , Reference (toTypeName (Proxy @b))
                   ]
@@ -211,7 +205,7 @@ class ListToSchema (flag :: Bool) a where
     listToSchema :: Proxy flag -> [a] -> DataType
 
 instance ListToSchema 'True Char where
-    listToSchema _ _ = DataType (TypeName "String") [] []
+    listToSchema _ _ = DataType (TypeName "" "String") [] []
 
 instance (ToTypeName a, ToTypeName [a]) => ListToSchema 'False a where
     listToSchema _ _ =
@@ -219,7 +213,7 @@ instance (ToTypeName a, ToTypeName [a]) => ListToSchema 'False a where
             (toTypeName (Proxy :: Proxy [a]))
             []
             [ Constructor
-                  (pack (unpack (toTypeName (Proxy :: Proxy [a]))))
+                  (ConstructorName (typeName (toTypeName (Proxy :: Proxy [a]))))
                   [Reference (toTypeName (Proxy @a))]
             ]
 
@@ -231,10 +225,10 @@ class ListTypeName (flag :: Bool) a where
     listTypeName :: Proxy flag -> [a] -> TypeName
 
 instance ListTypeName 'True Char where
-    listTypeName _ _ = TypeName "String"
+    listTypeName _ _ = TypeName "" "String"
 
 instance ListTypeName 'False a where
-    listTypeName _ _ = TypeName "List"
+    listTypeName _ _ = TypeName "Data.List" "List"
 
 instance (IsSpecialListElement a ~ flag, ListTypeName flag a) =>
          ToTypeName [a] where

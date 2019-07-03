@@ -75,11 +75,11 @@ vestingSpec =
                                   [ Record
                                         (ConstructorName "Vesting")
                                         [ ( "vestingTranche1"
-                                          , Reference "Main.VestingTranche")
+                                          , Reference (TypeName "Main" "VestingTranche"))
                                         , ( "vestingTranche2"
-                                          , Reference "Main.VestingTranche")
+                                          , Reference (TypeName "Main" "VestingTranche"))
                                         , ( "vestingOwner"
-                                          , Reference "Ledger.Crypto.PubKey")
+                                          , Reference (TypeName "Ledger.Crypto" "PubKey"))
                                         ]
                                   ]
                             ]
@@ -93,11 +93,11 @@ vestingSpec =
                                   [ Record
                                         (ConstructorName "Vesting")
                                         [ ( "vestingTranche1"
-                                          , Reference "Main.VestingTranche")
+                                          , Reference (TypeName "Main" "VestingTranche"))
                                         , ( "vestingTranche2"
-                                          , Reference "Main.VestingTranche")
+                                          , Reference (TypeName "Main" "VestingTranche"))
                                         , ( "vestingOwner"
-                                          , Reference "Ledger.Crypto.PubKey")
+                                          , Reference (TypeName "Ledger.Crypto" "PubKey"))
                                         ]
                                   ]
                             ]
@@ -111,11 +111,11 @@ vestingSpec =
                                   [ Record
                                         (ConstructorName "Vesting")
                                         [ ( "vestingTranche1"
-                                          , Reference "Main.VestingTranche")
+                                          , Reference (TypeName "Main" "VestingTranche"))
                                         , ( "vestingTranche2"
-                                          , Reference "Main.VestingTranche")
+                                          , Reference (TypeName "Main" "VestingTranche"))
                                         , ( "vestingOwner"
-                                          , Reference "Ledger.Crypto.PubKey")
+                                          , Reference (TypeName "Ledger.Crypto" "PubKey"))
                                         ]
                                   ]
                             , DataType
@@ -124,8 +124,7 @@ vestingSpec =
                                   [ Record
                                         (ConstructorName "Value")
                                         [ ( "getValue"
-                                          , Reference
-                                                "Language.PlutusTx.AssocMap.Map")
+                                          , Reference (TypeName "Language.PlutusTx.AssocMap" "Map"))
                                         ]
                                   ]
                             ]
@@ -139,8 +138,7 @@ vestingSpec =
                                   [ Record
                                         (ConstructorName "Value")
                                         [ ( "getValue"
-                                          , Reference
-                                                "Language.PlutusTx.AssocMap.Map")
+                                          , Reference (TypeName "Language.PlutusTx.AssocMap" "Map"))
                                         ]
                                   ]
                             , DataType
