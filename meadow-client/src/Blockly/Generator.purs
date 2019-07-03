@@ -3,12 +3,14 @@ module Blockly.Generator where
 import Prelude
 
 import Blockly.Types (Block, BlocklyState, Workspace)
+import Control.Monad.ST (ST)
+import Control.Monad.ST.Internal (STRef)
 import Data.Array as Array
 import Data.Either (Either(..))
-import Data.Function.Uncurried (Fn1, Fn4, Fn5, Fn6, runFn1, runFn4, runFn5, runFn6)
+import Data.Function.Uncurried (Fn1, Fn2, Fn3, Fn4, Fn5, Fn6, runFn1, runFn2, runFn3, runFn4, runFn5, runFn6)
 import Data.Maybe (Maybe)
 import Effect (Effect)
-import Effect.Uncurried (EffectFn1, EffectFn2, EffectFn3, runEffectFn1, runEffectFn2, runEffectFn3)
+import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
 import Partial.Unsafe (unsafePartial)
 
 type GeneratorFunction
@@ -35,9 +37,9 @@ foreign import statementToCode_ :: forall a. Fn5 (String -> Either String a) (a 
 
 foreign import valueToCode_ :: forall a. Fn6 (String -> Either String a) (a -> Either String a) Generator Block String Number (Either String String)
 
-foreign import mkGenerator_ :: EffectFn2 BlocklyState String Generator
+foreign import mkGenerator_ :: forall r. Fn2 BlocklyState String (ST r (STRef r Generator))
 
-foreign import insertGeneratorFunction_ :: EffectFn3 Generator String (Block -> String) Unit
+foreign import insertGeneratorFunction_ :: forall r. Fn3 (STRef r Generator) String (Block -> String) (ST r Unit)
 
 foreign import workspaceToCode_ :: EffectFn2 BlocklyState Generator String
 
@@ -70,11 +72,11 @@ statementToCode = runFn5 statementToCode_ Left Right
 valueToCode :: Generator -> Block -> String -> Order -> Either String String
 valueToCode g b v o = runFn6 valueToCode_ Left Right g b v (toNumber o)
 
-mkGenerator :: BlocklyState -> String -> Effect Generator
-mkGenerator = runEffectFn2 mkGenerator_
+mkGenerator :: forall r. BlocklyState -> String -> ST r (STRef r Generator)
+mkGenerator = runFn2 mkGenerator_
 
-insertGeneratorFunction :: Generator -> String -> (Block -> Either String String) -> Effect Unit
-insertGeneratorFunction generator key f = runEffectFn3 insertGeneratorFunction_ generator key ((unsafePartial unsafeFromRight) <<< f)
+insertGeneratorFunction :: forall r. STRef r Generator -> String -> (Block -> Either String String) -> ST r Unit
+insertGeneratorFunction generator key f = runFn3 insertGeneratorFunction_ generator key ((unsafePartial unsafeFromRight) <<< f)
 
 -- | This will throw the Left value in a result as a runtime exception
 unsafeFromRight :: forall a. Partial => Either String a -> a

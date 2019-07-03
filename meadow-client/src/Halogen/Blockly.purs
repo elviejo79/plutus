@@ -72,7 +72,7 @@ eval (Inject blockDefinitions next) = do
   blocklyState <- liftEffect $ Blockly.createBlocklyInstance (ElementId "blocklyWorkspace") (ElementId "blocklyToolbox")
   liftEffect $ Blockly.addBlockTypes blocklyState blockDefinitions
   liftEffect $ Blockly.initializeWorkspace blocklyState
-  generator <- liftEffect $ buildGenerator blocklyState
+  let generator = buildGenerator blocklyState
   _ <- modify _ {blocklyState = Just blocklyState, generator = Just generator}
   pure next
 
