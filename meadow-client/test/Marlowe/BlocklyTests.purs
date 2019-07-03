@@ -69,8 +69,8 @@ buildBlocks bs contract = do
   let
     mContract = getBlockById bs.workspace "root_contract"
   rootBlock <- case mContract of
-    Nothing -> newBlock bs.workspace "contract"
+    Nothing -> newBlock bs.workspace "BaseContractType"
     Just block -> pure block
   let
     inputs = inputList rootBlock
-  for_ (getInputWithName inputs "contract") \input -> toBlockly newBlock bs.workspace input contract
+  for_ (getInputWithName inputs "BaseContractType") \input -> toBlockly newBlock bs.workspace input contract
