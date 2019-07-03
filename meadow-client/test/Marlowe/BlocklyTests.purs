@@ -41,7 +41,7 @@ mkTestState = do
   blocklyState <- liftEffect $ Headless.createBlocklyInstance
   liftEffect $ Blockly.addBlockTypes blocklyState blockDefinitions
   liftEffect $ Headless.initializeWorkspace blocklyState
-  generator <- liftEffect $ buildGenerator blocklyState
+  let generator = buildGenerator blocklyState
   pure {blocklyState: blocklyState, generator: generator}
 
 c2b2c :: forall m. MonadGen m => MonadRec m => Lazy (m Value) => Lazy (m Observation) => Lazy (m Contract) => m Result
@@ -59,7 +59,7 @@ runContract :: Contract -> Effect (Either ParseError Contract)
 runContract contract = do
   state <- liftEffect mkTestState
   liftEffect $ buildBlocks state.blocklyState contract
-  code <- liftEffect $ workspaceToCode state.blocklyState state.generator
+  let code = workspaceToCode state.blocklyState state.generator
   let
     result = runParser code (parens Parser.contract <|> Parser.contract)
   pure result

@@ -30,25 +30,19 @@ exports.valueToCode_ = function (left, right, generator, block, key, order) {
     }
 }
 
-exports.mkGenerator_ = function (blocklyState, name) {
-    return function () {
-        return new blocklyState.blockly.Generator(name);
-    };
+exports.mkGenerator_ = function (mkRef, blocklyState, name) {
+    var generator = new blocklyState.blockly.Generator(name);
+    return mkRef(generator);
 }
 
-exports.insertGeneratorFunction_ = function (genRef) {
-    return function (key, f) {
-        console.log('ran this');
-        return function () {
-            console.log('didnt run this');
-            var generator = genRef.value;
-            generator[key] = f;
-        };
+exports.insertGeneratorFunction_ = function (genRef, key, f) {
+    return function () {
+        var generator = genRef.value;
+        generator[key] = f;
     };
 }
 
 exports.workspaceToCode_ = function (blocklyState, generator) {
-    console.log(generator);
     return generator.workspaceToCode(blocklyState.workspace);
 }
 

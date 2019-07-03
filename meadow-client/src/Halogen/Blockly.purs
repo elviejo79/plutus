@@ -88,11 +88,9 @@ eval (GetCode next) = runMaybeT f *> pure next
   f = do
     blocklyState <- MaybeT $ use _blocklyState
     generator <- MaybeT $ use _generator
-    lift do
-      code <- liftEffect $ workspaceToCode blocklyState generator
-      let
+    let code = workspaceToCode blocklyState generator
         result = runParser code (parens Parser.contract <|> Parser.contract)
-      case result of
+    lift $ case result of
         Left e -> log (show e)
         Right contract -> raise $ CurrentCode (show (pretty contract))
 

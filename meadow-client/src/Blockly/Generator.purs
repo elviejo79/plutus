@@ -4,7 +4,8 @@ import Prelude
 
 import Blockly.Types (Block, BlocklyState, Workspace)
 import Control.Monad.ST (ST)
-import Control.Monad.ST.Internal (STRef)
+import Control.Monad.ST.Ref (STRef)
+import Control.Monad.ST.Ref as STRef
 import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Function.Uncurried (Fn1, Fn2, Fn3, Fn4, Fn5, Fn6, runFn1, runFn2, runFn3, runFn4, runFn5, runFn6)
@@ -37,11 +38,11 @@ foreign import statementToCode_ :: forall a. Fn5 (String -> Either String a) (a 
 
 foreign import valueToCode_ :: forall a. Fn6 (String -> Either String a) (a -> Either String a) Generator Block String Number (Either String String)
 
-foreign import mkGenerator_ :: forall r. Fn2 BlocklyState String (ST r (STRef r Generator))
+foreign import mkGenerator_ :: forall r. Fn3 (forall a r1. a -> ST r1 (STRef r1 a)) BlocklyState String (ST r (STRef r Generator))
 
 foreign import insertGeneratorFunction_ :: forall r. Fn3 (STRef r Generator) String (Block -> String) (ST r Unit)
 
-foreign import workspaceToCode_ :: EffectFn2 BlocklyState Generator String
+foreign import workspaceToCode_ :: Fn2 BlocklyState Generator String
 
 foreign import inputList_ :: Fn1 Block (Array Input)
 
@@ -73,7 +74,7 @@ valueToCode :: Generator -> Block -> String -> Order -> Either String String
 valueToCode g b v o = runFn6 valueToCode_ Left Right g b v (toNumber o)
 
 mkGenerator :: forall r. BlocklyState -> String -> ST r (STRef r Generator)
-mkGenerator = runFn2 mkGenerator_
+mkGenerator = runFn3 mkGenerator_ STRef.new
 
 insertGeneratorFunction :: forall r. STRef r Generator -> String -> (Block -> Either String String) -> ST r Unit
 insertGeneratorFunction generator key f = runFn3 insertGeneratorFunction_ generator key ((unsafePartial unsafeFromRight) <<< f)
@@ -84,8 +85,8 @@ unsafeFromRight (Right a) = a
 
 unsafeFromRight (Left e) = runFn1 unsafeThrowError_ e
 
-workspaceToCode :: BlocklyState -> Generator -> Effect String
-workspaceToCode = runEffectFn2 workspaceToCode_
+workspaceToCode :: BlocklyState -> Generator -> String
+workspaceToCode = runFn2 workspaceToCode_
 
 inputList :: Block -> Array Input
 inputList = runFn1 inputList_
