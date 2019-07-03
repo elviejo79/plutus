@@ -41,11 +41,13 @@ function removeEmptyArrayFields(obj) {
 
 exports.addBlockType_ = function (blocklyState, name, block) {
     var Blockly = blocklyState.blockly;
-    removeUndefinedFields(block);
-    removeEmptyArrayFields(block);
+    // we really don't want to be mutating the input object, it is not supposed to be state
+    var clone = JSON.parse(JSON.stringify(block));
+    removeUndefinedFields(clone);
+    removeEmptyArrayFields(clone);
     Blockly.Blocks[name] = {
         init: function () {
-            this.jsonInit(block);
+            this.jsonInit(clone);
         }
     }
 }
