@@ -50,14 +50,16 @@ exports.inputList_ = function (block) {
     return block.inputList;
 }
 
-exports.connectToPrevious_ = function (block, input) {
+exports.connectToPrevious_ = function (blockRef, input) {
     return function () {
+        var block = blockRef.value;
         block.previousConnection.connect(input.connection);
     };
 }
 
-exports.connectToOutput_ = function (block, input) {
+exports.connectToOutput_ = function (blockRef, input) {
     return function () {
+        var block = blockRef.value;
         block.outputConnection.connect(input.connection);
     };
 }
@@ -80,8 +82,9 @@ exports.fieldRow_ = function (input) {
     return input.fieldRow;
 }
 
-exports.setFieldText_ = function (field, text) {
+exports.setFieldText_ = function (fieldRef, text) {
     return function () {
+        var field = fieldRef.value;
         field.setText(text);
     };
 }
