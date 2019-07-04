@@ -52,14 +52,20 @@ exports.addBlockType_ = function (blocklyState, name, block) {
     }
 }
 
-exports.initializeWorkspace_ = function (blockly, workspace) {
-    var workspaceBlocks = document.getElementById("workspaceBlocks");
-    blockly.Xml.domToWorkspace(workspaceBlocks, workspace);
-    workspace.getAllBlocks()[0].setDeletable(false);
+exports.initializeWorkspace_ = function (blockly, workspaceRef) {
+    return function () {
+        var workspace = workspaceRef.value;
+        var workspaceBlocks = document.getElementById("workspaceBlocks");
+        blockly.Xml.domToWorkspace(workspaceBlocks, workspace);
+        workspace.getAllBlocks()[0].setDeletable(false);
+    };
 }
 
-exports.render_ = function (workspace) {
-    workspace.render();
+exports.render_ = function (workspaceRef) {
+    return function () {
+        var workspace = workspaceRef.value;
+        workspace.render();
+    };
 }
 
 exports.getBlockById_ = function (just, nothing, workspace, id) {

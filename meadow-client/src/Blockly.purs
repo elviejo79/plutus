@@ -1,8 +1,10 @@
 module Blockly where
 
 import Prelude
+
 import Blockly.Types (Block, Blockly, BlocklyState, Workspace)
-import Data.Function.Uncurried (Fn4, runFn4)
+import Control.Monad.ST.Internal (ST, STRef)
+import Data.Function.Uncurried (Fn2, Fn4, Fn1, runFn1, runFn2, runFn4)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Symbol (SProxy(..))
@@ -64,9 +66,9 @@ foreign import resizeBlockly_ :: EffectFn1 BlocklyState Unit
 
 foreign import addBlockType_ :: EffectFn3 BlocklyState String Foreign Unit
 
-foreign import initializeWorkspace_ :: EffectFn2 Blockly Workspace Unit
+foreign import initializeWorkspace_ :: forall r. Fn2 Blockly (STRef r Workspace) (ST r Unit)
 
-foreign import render_ :: EffectFn1 Workspace Unit
+foreign import render_ :: forall r. Fn1 (STRef r Workspace) (ST r Unit)
 
 foreign import getBlockById_ :: forall a. Fn4 (a -> Maybe a) (Maybe a) Workspace String (Maybe Block)
 
@@ -130,11 +132,11 @@ addBlockType blocklyState (BlockDefinition fields) =
 addBlockTypes :: forall f. Foldable f => BlocklyState -> f BlockDefinition -> Effect Unit
 addBlockTypes blocklyState = traverse_ (addBlockType blocklyState)
 
-initializeWorkspace :: BlocklyState -> Effect Unit
-initializeWorkspace state = runEffectFn2 initializeWorkspace_ state.blockly state.workspace
+initializeWorkspace :: forall r. Blockly -> STRef r Workspace -> ST r Unit
+initializeWorkspace = runFn2 initializeWorkspace_
 
-render :: Workspace -> Effect Unit
-render = runEffectFn1 render_
+render :: forall r. (STRef r Workspace) -> ST r Unit
+render = runFn1 render_
 
 getBlockById :: Workspace -> String -> Maybe Block
 getBlockById = runFn4 getBlockById_ Just Nothing

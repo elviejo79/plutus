@@ -64,7 +64,8 @@ exports.connectToOutput_ = function (blockRef, input) {
     };
 }
 
-exports.newBlock_ = function (mkRef, workspace, name) {
+exports.newBlock_ = function (mkRef, workspaceRef, name) {
+    var workspace = workspaceRef.value;
     var block = workspace.newBlock(name);
     block.initSvg();
     return mkRef(block);
@@ -74,8 +75,11 @@ exports.inputName_ = function (input) {
     return input.name;
 }
 
-exports.clearWorkspace_ = function (workspace) {
-    workspace.clear()
+exports.clearWorkspace_ = function (workspaceRef) {
+    return function () {
+        var workspace = workspaceRef.value;
+        workspace.clear()
+    };
 }
 
 exports.fieldRow_ = function (input) {

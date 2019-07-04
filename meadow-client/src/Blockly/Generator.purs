@@ -52,11 +52,11 @@ foreign import connectToPrevious_ :: forall r. Fn2 (STRef r Block) Input (ST r U
 
 foreign import connectToOutput_ :: forall r. Fn2 (STRef r Block) Input (ST r Unit)
 
-foreign import newBlock_ :: forall r. Fn3 NewSTRefFunction Workspace String (ST r (STRef r Block))
+foreign import newBlock_ :: forall r. Fn3 NewSTRefFunction (STRef r Workspace) String (ST r (STRef r Block))
 
 foreign import inputName_ :: Fn1 Input String
 
-foreign import clearWorkspace_ :: EffectFn1 Workspace Unit
+foreign import clearWorkspace_ :: forall r. Fn1 (STRef r Workspace) (ST r Unit)
 
 foreign import fieldRow_ :: Fn1 Input (Array Field)
 
@@ -99,7 +99,7 @@ connectToPrevious = runFn2 connectToPrevious_
 connectToOutput :: forall r. (STRef r Block) -> Input -> ST r Unit
 connectToOutput = runFn2 connectToOutput_
 
-newBlock :: forall r. Workspace -> String -> ST r (STRef r Block)
+newBlock :: forall r. (STRef r Workspace) -> String -> ST r (STRef r Block)
 newBlock = runFn3 newBlock_ STRef.new
 
 inputName :: Input -> String
@@ -110,8 +110,8 @@ getInputWithName inputs name = do
   idx <- Array.findIndex (\i -> (inputName i) == name) inputs
   Array.index inputs idx
 
-clearWorkspace :: Workspace -> Effect Unit
-clearWorkspace = runEffectFn1 clearWorkspace_
+clearWorkspace :: forall r. STRef r Workspace -> ST r Unit
+clearWorkspace = runFn1 clearWorkspace_
 
 fieldRow :: Input -> Array Field
 fieldRow = runFn1 fieldRow_

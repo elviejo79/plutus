@@ -1,7 +1,6 @@
 module Marlowe.Blockly where
 
 import Prelude
-
 import Blockly (AlignDirection(..), Arg(..), BlockDefinition(..), block, blockType, category, colour, defaultBlockDefinition, getBlockById, initializeWorkspace, name, render, style, x, xml, y)
 import Blockly.Generator (Generator, Input, clearWorkspace, connectToOutput, connectToPrevious, fieldName, fieldRow, getFieldValue, getInputWithName, inputList, inputName, insertGeneratorFunction, mkGenerator, newBlock, setFieldText, statementToCode)
 import Blockly.Types (Block, BlocklyState, Workspace)
@@ -711,14 +710,17 @@ parse :: forall a. Parser String a -> String -> Either String a
 parse p = lmap show <<< flip runParser (parens p <|> p)
 
 buildGenerator :: BlocklyState -> Generator
-buildGenerator blocklyState = ST.run (do
-  gRef <- mkGenerator blocklyState "Marlowe"
-  g <- STRef.read gRef
-  traverse_ (\t -> mkGenFun gRef t (baseContractDefinition g)) [BaseContractType]
-  traverse_ (\t -> mkGenFun gRef t (blockDefinition t g)) contractTypes
-  traverse_ (\t -> mkGenFun gRef t (blockDefinition t g)) observationTypes
-  traverse_ (\t -> mkGenFun gRef t (blockDefinition t g)) valueTypes
-  STRef.read gRef)
+buildGenerator blocklyState =
+  ST.run
+    ( do
+      gRef <- mkGenerator blocklyState "Marlowe"
+      g <- STRef.read gRef
+      traverse_ (\t -> mkGenFun gRef t (baseContractDefinition g)) [BaseContractType]
+      traverse_ (\t -> mkGenFun gRef t (blockDefinition t g)) contractTypes
+      traverse_ (\t -> mkGenFun gRef t (blockDefinition t g)) observationTypes
+      traverse_ (\t -> mkGenFun gRef t (blockDefinition t g)) valueTypes
+      STRef.read gRef
+    )
 
 mkGenFun :: forall a r t. Show a => Show t => STRef r Generator -> t -> (Block -> Either String a) -> ST r Unit
 mkGenFun generator blockType f = insertGeneratorFunction generator (show blockType) ((rmap show) <<< f)
@@ -882,50 +884,53 @@ instance hasBlockDefinitionValue :: HasBlockDefinition ValueType Value where
     value <- parse Parser.value =<< statementToCode g block "value"
     pure (ValueFromOracle oracleId value)
 
-buildBlocks :: BlocklyState -> Contract -> Effect Unit
+buildBlocks :: forall r. BlocklyState -> Contract -> ST r Unit
 buildBlocks bs contract = do
-  clearWorkspace bs.workspace
-  initializeWorkspace bs
+  workspaceRef <- STRef.new bs.workspace
+  clearWorkspace workspaceRef
+  initializeWorkspace bs.blockly workspaceRef
   let
     mContract = getBlockById bs.workspace "root_contract"
-    rootBlock = case mContract of
-      Nothing -> ST.run (do
-        blockRef <- newBlock bs.workspace (show BaseContractType)
-        STRef.read blockRef)
-      Just block -> block
+  rootBlock <- case mContract of
+    Nothing -> do
+      blockRef <- newBlock workspaceRef (show BaseContractType)
+      STRef.read blockRef
+    Just block -> pure block
+  let
     inputs = inputList rootBlock
 
     mInput = getInputWithName inputs (show BaseContractType)
   case mInput of
     Nothing -> pure unit
     Just i -> do
-      let _ = ST.run (toBlockly bs.workspace i contract)
-      render bs.workspace
+      toBlockly workspaceRef i contract
+      render workspaceRef
 
 setField :: forall r. (STRef r Block) -> String -> String -> ST r Unit
 setField blockRef name value = do
   block <- STRef.read blockRef
-  let fields = inputList block >>= fieldRow
+  let
+    fields = inputList block >>= fieldRow
   case Array.find (\f -> fieldName f == name) fields of
     Nothing -> pure unit
     Just f -> do
       field <- STRef.new f
       setFieldText field value
 
-inputToBlockly :: forall a r. ToBlockly a => Workspace -> STRef r Block -> String -> a -> ST r Unit
-inputToBlockly workspace blockRef name value = do
+inputToBlockly :: forall a r. ToBlockly a => (STRef r Workspace) -> STRef r Block -> String -> a -> ST r Unit
+inputToBlockly workspaceRef blockRef name value = do
   block <- STRef.read blockRef
   case Array.find (\i -> inputName i == name) (inputList block) of
     Nothing -> pure unit
-    Just input -> toBlockly workspace input value
+    Just input -> toBlockly workspaceRef input value
 
 class ToBlockly a where
-  toBlockly :: forall r. Workspace -> Input -> a -> ST r Unit
+  toBlockly :: forall r. STRef r Workspace -> Input -> a -> ST r Unit
 
 instance toBlocklyContract :: ToBlockly Contract where
   toBlockly workspace input Null = do
-      block <- newBlock workspace (show NullContractType)
-      connectToPrevious block input
+    block <- newBlock workspace (show NullContractType)
+    connectToPrevious block input
   toBlockly workspace input (Commit action commit person ammount endExpiration startExpiration contract1 contract2) = do
     block <- newBlock workspace (show CommitContractType)
     connectToPrevious block input

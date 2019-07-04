@@ -8,6 +8,8 @@ import Bootstrap (btn, btnInfo, btnSmall)
 import Control.Alt ((<|>))
 import Control.Monad ((*>))
 import Control.Monad.Maybe.Trans (MaybeT(..), lift, runMaybeT)
+import Control.Monad.ST as ST
+import Control.Monad.ST.Ref as STRef
 import Data.Either (Either(..))
 import Data.Lens (Lens', use)
 import Data.Lens.Record (prop)
@@ -71,7 +73,9 @@ eval :: forall m. MonadEffect m => BlocklyQuery ~> DSL m
 eval (Inject blockDefinitions next) = do
   blocklyState <- liftEffect $ Blockly.createBlocklyInstance (ElementId "blocklyWorkspace") (ElementId "blocklyToolbox")
   liftEffect $ Blockly.addBlockTypes blocklyState blockDefinitions
-  liftEffect $ Blockly.initializeWorkspace blocklyState
+  let _ = ST.run (do
+                    workspaceRef <- STRef.new blocklyState.workspace
+                    Blockly.initializeWorkspace blocklyState.blockly workspaceRef)
   let generator = buildGenerator blocklyState
   _ <- modify _ {blocklyState = Just blocklyState, generator = Just generator}
   pure next
@@ -102,9 +106,7 @@ eval (SetCode code next) = do
       Left _ -> Null
   case blocklyState of
     Nothing -> pure unit
-    Just bs -> do
-      liftEffect $ buildBlocks bs contract
-      pure unit
+    Just bs -> pure $ ST.run (buildBlocks bs contract)
   pure next
 
 blocklyRef :: RefLabel
