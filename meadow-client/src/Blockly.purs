@@ -55,6 +55,8 @@ type WorkspaceConfig
   , grid :: GridConfig
   }
 
+-- Functions that mutate values always work on STRefs rather than regular values
+
 foreign import getElementById_ :: EffectFn1 String HTMLElement
 
 foreign import createBlocklyInstance_ :: Effect Blockly

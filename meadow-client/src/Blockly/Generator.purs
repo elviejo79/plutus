@@ -34,6 +34,8 @@ foreign import data Input :: Type
 
 foreign import data Field :: Type
 
+-- Functions that mutate values always work on STRefs rather than regular values
+
 foreign import getFieldValue_ :: forall a. Fn4 (String -> Either String a) (a -> Either String a) Block String (Either String String)
 
 foreign import statementToCode_ :: forall a. Fn5 (String -> Either String a) (a -> Either String a) Generator Block String (Either String String)
