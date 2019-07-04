@@ -103,7 +103,7 @@ eval (SetCode code next) = do
   case blocklyState of
     Nothing -> pure unit
     Just bs -> do
-      liftEffect $ buildBlocks newBlock bs contract
+      liftEffect $ buildBlocks bs contract
       pure unit
   pure next
 

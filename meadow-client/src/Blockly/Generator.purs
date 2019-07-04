@@ -17,6 +17,8 @@ import Partial.Unsafe (unsafePartial)
 type GeneratorFunction
   = Block -> Either String String
 
+type NewSTRefFunction = (forall a r. a -> ST r (STRef r a))
+
 data Order
   = Atomic
   | None
@@ -38,7 +40,7 @@ foreign import statementToCode_ :: forall a. Fn5 (String -> Either String a) (a 
 
 foreign import valueToCode_ :: forall a. Fn6 (String -> Either String a) (a -> Either String a) Generator Block String Number (Either String String)
 
-foreign import mkGenerator_ :: forall r. Fn3 (forall a r1. a -> ST r1 (STRef r1 a)) BlocklyState String (ST r (STRef r Generator))
+foreign import mkGenerator_ :: forall r. Fn3 NewSTRefFunction BlocklyState String (ST r (STRef r Generator))
 
 foreign import insertGeneratorFunction_ :: forall r. Fn3 (STRef r Generator) String (Block -> String) (ST r Unit)
 
@@ -46,11 +48,11 @@ foreign import workspaceToCode_ :: Fn2 BlocklyState Generator String
 
 foreign import inputList_ :: Fn1 Block (Array Input)
 
-foreign import connectToPrevious_ :: EffectFn2 Block Input Unit
+foreign import connectToPrevious_ :: forall r. Fn2 (STRef r Block) Input (ST r Unit)
 
-foreign import connectToOutput_ :: EffectFn2 Block Input Unit
+foreign import connectToOutput_ :: forall r. Fn2 (STRef r Block) Input (ST r Unit)
 
-foreign import newBlock_ :: EffectFn2 Workspace String Block
+foreign import newBlock_ :: forall r. Fn3 NewSTRefFunction Workspace String (ST r (STRef r Block))
 
 foreign import inputName_ :: Fn1 Input String
 
@@ -58,7 +60,7 @@ foreign import clearWorkspace_ :: EffectFn1 Workspace Unit
 
 foreign import fieldRow_ :: Fn1 Input (Array Field)
 
-foreign import setFieldText_ :: EffectFn2 Field String Unit
+foreign import setFieldText_ :: forall r. Fn2 (STRef r Field) String (ST r Unit)
 
 foreign import fieldName_ :: Fn1 Field String
 
@@ -91,14 +93,14 @@ workspaceToCode = runFn2 workspaceToCode_
 inputList :: Block -> Array Input
 inputList = runFn1 inputList_
 
-connectToPrevious :: Block -> Input -> Effect Unit
-connectToPrevious = runEffectFn2 connectToPrevious_
+connectToPrevious :: forall r. (STRef r Block) -> Input -> ST r Unit
+connectToPrevious = runFn2 connectToPrevious_
 
-connectToOutput :: Block -> Input -> Effect Unit
-connectToOutput = runEffectFn2 connectToOutput_
+connectToOutput :: forall r. (STRef r Block) -> Input -> ST r Unit
+connectToOutput = runFn2 connectToOutput_
 
-newBlock :: Workspace -> String -> Effect Block
-newBlock = runEffectFn2 newBlock_
+newBlock :: forall r. Workspace -> String -> ST r (STRef r Block)
+newBlock = runFn3 newBlock_ STRef.new
 
 inputName :: Input -> String
 inputName = runFn1 inputName_
@@ -114,8 +116,8 @@ clearWorkspace = runEffectFn1 clearWorkspace_
 fieldRow :: Input -> Array Field
 fieldRow = runFn1 fieldRow_
 
-setFieldText :: Field -> String -> Effect Unit
-setFieldText = runEffectFn2 setFieldText_
+setFieldText :: forall r. (STRef r Field) -> String -> ST r Unit
+setFieldText = runFn2 setFieldText_
 
 fieldName :: Field -> String
 fieldName = runFn1 fieldName_

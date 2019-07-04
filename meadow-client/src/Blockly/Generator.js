@@ -51,17 +51,21 @@ exports.inputList_ = function (block) {
 }
 
 exports.connectToPrevious_ = function (block, input) {
-    block.previousConnection.connect(input.connection);
+    return function () {
+        block.previousConnection.connect(input.connection);
+    };
 }
 
 exports.connectToOutput_ = function (block, input) {
-    block.outputConnection.connect(input.connection);
+    return function () {
+        block.outputConnection.connect(input.connection);
+    };
 }
 
-exports.newBlock_ = function (workspace, name) {
+exports.newBlock_ = function (mkRef, workspace, name) {
     var block = workspace.newBlock(name);
     block.initSvg();
-    return block;
+    return mkRef(block);
 }
 
 exports.inputName_ = function (input) {
@@ -77,7 +81,9 @@ exports.fieldRow_ = function (input) {
 }
 
 exports.setFieldText_ = function (field, text) {
-    field.setText(text);
+    return function () {
+        field.setText(text);
+    };
 }
 
 exports.fieldName_ = function (field) {
