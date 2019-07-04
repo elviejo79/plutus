@@ -12,6 +12,9 @@ module Examples.Game(
     , LockParams(..)
     , GuessParams(..)
     , gameAddress
+    -- * Some traces
+    , lockTrace
+    , guessTrace
     ) where
 
 import           Control.Applicative                           (Alternative (..))
@@ -23,9 +26,12 @@ import           Data.Maybe                                    (fromMaybe)
 import           GHC.Generics                                  (Generic)
 
 import           Language.Plutus.Contract                      (PlutusContract, endpoint, nextTransactionAt, writeTx)
+import           Language.Plutus.Contract.Emulator
 import           Language.Plutus.Contract.Transaction          (unbalancedTx)
 import           Language.PlutusTx.Coordination.Contracts.Game (gameAddress, gameDataScript, gameRedeemerScript,
                                                                 gameValidator)
+import qualified Wallet.Emulator                               as EM
+
 import qualified Ledger                                        as L
 import           Ledger.Ada                                    (Ada)
 import qualified Ledger.Ada                                    as Ada
@@ -70,3 +76,9 @@ lock = do
 
 game :: PlutusContract m => m ()
 game = guess <|> lock
+
+lockTrace :: ContractTrace EM.EmulatorAction a ()
+lockTrace = callEndpoint (EM.Wallet 1) "lock" (LockParams "secret" 10)
+
+guessTrace :: ContractTrace EM.EmulatorAction a ()
+guessTrace = lockTrace >> callEndpoint (EM.Wallet 2) "guess" (GuessParams "secret")

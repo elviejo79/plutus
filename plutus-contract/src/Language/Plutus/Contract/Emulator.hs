@@ -5,12 +5,14 @@
 module Language.Plutus.Contract.Emulator(
     ContractTraceState
     , ContractTrace
+    , EmulatorAction
     , ctsEvents
     , ctsContract
     , ContractTraceResult(..)
     , ctrEmulatorState
     , ctrTraceState
     , runTrace
+    , execTrace
     , defaultDist
     -- * Constructing 'MonadEmulator' actions
     , initContract
@@ -74,6 +76,12 @@ data ContractTraceResult a =
 makeLenses ''ContractTraceResult
 
 type ContractTrace m a b = StateT (ContractTraceState a) m b
+
+execTrace :: ContractPrompt Maybe a -> ContractTrace EmulatorAction a () -> [Event]
+execTrace con action =
+    let (e, _) = runTrace con action
+    in
+        either (const []) (toList . _ctsEvents . snd) e
 
 runTrace :: ContractPrompt Maybe a -> ContractTrace EmulatorAction a () -> (Either AssertionError ((), ContractTraceState a), EmulatorState)
 runTrace con action = withInitialDistribution defaultDist (runStateT action (mkState con))

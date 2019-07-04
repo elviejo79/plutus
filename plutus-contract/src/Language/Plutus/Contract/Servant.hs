@@ -8,6 +8,10 @@
 module Language.Plutus.Contract.Servant(
       contractServer
     , contractApp
+    , initialResponse
+    , runUpdate
+    , Request(..)
+    , Response(..)
     ) where
 
 import           Control.Monad.Writer
@@ -53,16 +57,21 @@ type ContractAPI =
 contractServer :: StatefulContract () -> Server ContractAPI
 contractServer con = initialise :<|> run where
     initialise = pure (initialResponse con)
-    run (Request o e) =
-        case State.insertAndUpdate con (record o) e of
-            Left err     ->
+    run req =
+        case runUpdate con req of
+            Left err ->
                 let bd = "'insertAndUpdate' failed. " in
                 throwError $ err500 { errBody = fromString (bd <> err) }
-            Right (r, h) -> pure $ Response (State r) h
+            Right r -> pure r
 
 -- | A servant 'Application' that serves a Plutus contract
 contractApp :: StatefulContract () -> Application
 contractApp = serve (Proxy @ContractAPI) . contractServer
+
+runUpdate :: StatefulContract () -> Request -> Either String Response
+runUpdate con (Request o e) =
+    (\(r, h) -> Response (State r) h)
+    <$> State.insertAndUpdate con (record o) e
 
 initialResponse :: StatefulContract () -> Response
 initialResponse =

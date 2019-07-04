@@ -210,16 +210,6 @@ runClosed con rc =
                             case r of
                                 Nothing -> throwError "ClosedLeaf, contract not finished"
                                 Just  a -> pure a
-                        CAlt conL conR -> do
-                            -- We know that one of the branches is finished so 
-                            -- we can ignore the hooks produced by the other 
-                            -- branch
-                            r <- censor (const mempty) 
-                                    $ (<|>) <$> C.runConM (toList evts) (lower conL)
-                                            <*> C.runConM (toList evts) (lower conR)
-                            case r of
-                                Nothing -> throwError "ClosedLeaf CAlt, neither side finished"
-                                Just a -> pure a
                         _ -> throwError "ClosedLeaf, expected CContract "
                 ClosedLeaf (FinalJSON vl) ->
                     case con of
@@ -228,12 +218,17 @@ runClosed con rc =
                                 Left e    -> throwError e
                                 Right vl' -> writer (vl', mempty)
                         _ -> throwError ("Expected JSON checkpoint, got " ++ prtty con)
+                ClosedAlt e ->
+                    case con of
+                        CAlt conL conR -> either (runClosed conL) (runClosed conR) e
+                        _ -> throwError ("ClosedAlt with wrong contract type: " ++ prtty con)
+                            
                 ClosedBin l r ->
                     case con of
                         CMap f con' -> fmap f (runClosed con' (ClosedBin l r))
                         CAp l' r'   -> runClosed l' l <*> runClosed r' l
                         CBind l' f  -> runClosed l' l >>= flip runClosed r . f
-                        _           -> throwError "ClosedBin with wrong contract type"
+                        o           -> throwError ("ClosedBin with wrong contract type: " ++ prtty o)
 
 runOpen
     :: ( MonadWriter Hooks m
@@ -274,8 +269,8 @@ runOpen con opr =
             lr <- runOpen l orL
             rr <- runOpen r orR
             case (lr, rr) of
-                (Right (crL, a), _) -> pure (Right (crL, a))
-                (_, Right (crR, a)) -> pure (Right (crR, a))
+                (Right (crL, a), _) -> pure (Right (ClosedAlt (Left crL), a))
+                (_, Right (crR, a)) -> pure (Right (ClosedAlt (Right crR), a))
                 (Left oL, Left oR)  -> pure (Left (OpenBoth oL oR))
         (CAlt{}, OpenLeaf _) -> throwError "CAlt OpenLeaf"
 

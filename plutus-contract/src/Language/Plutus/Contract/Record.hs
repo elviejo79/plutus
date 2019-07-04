@@ -24,7 +24,8 @@ data FinalValue i = FinalJSON Value | FinalEvents (Seq i)
 data ClosedRecord i =
     ClosedLeaf (FinalValue i)
   | ClosedBin  (ClosedRecord i) (ClosedRecord i)
-  deriving stock (Eq, Show, Generic, Functor)
+  | ClosedAlt (Either (ClosedRecord i) (ClosedRecord i))
+  deriving stock (Eq, Show, Generic)
   deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
 
 data OpenRecord i =
@@ -33,7 +34,7 @@ data OpenRecord i =
   | OpenLeft (OpenRecord i) (ClosedRecord i)
   | OpenRight (ClosedRecord i) (OpenRecord i)
   | OpenBoth (OpenRecord i) (OpenRecord i)
-  deriving stock (Eq, Show, Generic, Functor)
+  deriving stock (Eq, Show, Generic)
   deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
 
 openSubRecords :: Traversal' (OpenRecord i) (OpenRecord i)
@@ -48,6 +49,7 @@ closedSubRecords :: Traversal' (ClosedRecord i) (ClosedRecord i)
 closedSubRecords f = \case
     v@ClosedLeaf{} -> pure v
     ClosedBin l r -> ClosedBin <$> f l <*> f r
+    ClosedAlt e -> ClosedAlt <$> either (fmap Left . f) (fmap Right . f) e
 
 fromPair :: Record i -> Record i -> Record i
 fromPair l r = case (l, r) of

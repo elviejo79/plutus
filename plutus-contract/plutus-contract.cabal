@@ -99,7 +99,9 @@ executable contract-guessing-game
         examples
     build-depends:
         base >=4.7 && <5,
-        warp -any
+        warp -any,
+        aeson -any,
+        bytestring -any
 
 executable contract-crowdfunding
     default-language: Haskell2010
