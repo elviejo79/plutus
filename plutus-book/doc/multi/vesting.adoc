@@ -1,0 +1,18 @@
+[source,haskell]
+----
+{-# LANGUAGE DataKinds                       #-}
+{-# LANGUAGE DeriveAnyClass                  #-}
+{-# LANGUAGE NoImplicitPrelude               #-}
+{-# LANGUAGE ScopedTypeVariables             #-}
+{-# LANGUAGE TemplateHaskell                 #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
+module Multi.Vesting where
+
+import Language.PlutusTx
+import Language.PlutusTx.Prelude hiding (plus)
+import Ledger
+import Ledger.Ada
+import Playground.Contract
+import Wallet
+----

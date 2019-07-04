@@ -1,0 +1,6 @@
+= Multi-stage contracts
+
+The example scripts we have seen so far had one thing in common: All locked funds
+were collected from them in one step. In this chapter, we want to look at an
+example where this is not the case and where the funds can be collected in
+potentially many steps.
