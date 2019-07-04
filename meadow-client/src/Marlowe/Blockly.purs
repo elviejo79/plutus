@@ -899,7 +899,7 @@ buildBlocks bs contract = do
   case mInput of
     Nothing -> pure unit
     Just i -> do
-      toBlockly bs.workspace i contract
+      let _ = ST.run (toBlockly bs.workspace i contract)
       render bs.workspace
 
 setField :: forall r. (STRef r Block) -> String -> String -> ST r Unit
@@ -909,23 +909,25 @@ setField blockRef name value = do
   case Array.find (\f -> fieldName f == name) fields of
     Nothing -> pure unit
     Just f -> do
-      input <- STRef.new f
-      setFieldText input value
+      field <- STRef.new f
+      setFieldText field value
 
-inputToBlockly :: forall a. ToBlockly a => Workspace -> Block -> String -> a -> Effect Unit
-inputToBlockly workspace block name value = case Array.find (\i -> inputName i == name) (inputList block) of
-  Nothing -> pure unit
-  Just input -> toBlockly workspace input value
+inputToBlockly :: forall a r. ToBlockly a => Workspace -> STRef r Block -> String -> a -> ST r Unit
+inputToBlockly workspace blockRef name value = do
+  block <- STRef.read blockRef
+  case Array.find (\i -> inputName i == name) (inputList block) of
+    Nothing -> pure unit
+    Just input -> toBlockly workspace input value
 
 class ToBlockly a where
-  toBlockly :: Workspace -> Input -> a -> Effect Unit
+  toBlockly :: forall r. Workspace -> Input -> a -> ST r Unit
 
 instance toBlocklyContract :: ToBlockly Contract where
   toBlockly workspace input Null = do
-    let block = ST.run (newBlock workspace (show NullContractType) >>= STRef.read)
-    connectToPrevious block input
+      block <- newBlock workspace (show NullContractType)
+      connectToPrevious block input
   toBlockly workspace input (Commit action commit person ammount endExpiration startExpiration contract1 contract2) = do
-    let block = ST.run (newBlock workspace (show CommitContractType) >>= STRef.read)
+    block <- newBlock workspace (show CommitContractType)
     connectToPrevious block input
     setField block "action_id" (show (unwrap action))
     setField block "commit_id" (show (unwrap commit))
@@ -936,7 +938,7 @@ instance toBlocklyContract :: ToBlockly Contract where
     inputToBlockly workspace block "contract1" contract1
     inputToBlockly workspace block "contract2" contract2
   toBlockly workspace input (Pay action commit payee ammount timeout contract1 contract2) = do
-    let block = ST.run (newBlock workspace (show PayContractType) >>= STRef.read)
+    block <- newBlock workspace (show PayContractType)
     connectToPrevious block input
     setField block "action_id" (show (unwrap action))
     setField block "commit_id" (show (unwrap commit))
@@ -946,161 +948,161 @@ instance toBlocklyContract :: ToBlockly Contract where
     inputToBlockly workspace block "contract1" contract1
     inputToBlockly workspace block "contract2" contract2
   toBlockly workspace input (Both contract1 contract2) = do
-    let block = ST.run (newBlock workspace (show BothContractType) >>= STRef.read)
+    block <- newBlock workspace (show BothContractType)
     connectToPrevious block input
     inputToBlockly workspace block "contract1" contract1
     inputToBlockly workspace block "contract2" contract2
   toBlockly workspace input (Choice observation contract1 contract2) = do
-    let block = ST.run (newBlock workspace (show ChoiceContractType) >>= STRef.read)
+    block <- newBlock workspace (show ChoiceContractType)
     connectToPrevious block input
     inputToBlockly workspace block "observation" observation
     inputToBlockly workspace block "contract1" contract1
     inputToBlockly workspace block "contract2" contract2
   toBlockly workspace input (When observation timeout contract1 contract2) = do
-    let block = ST.run (newBlock workspace (show WhenContractType) >>= STRef.read)
+    block <- newBlock workspace (show WhenContractType)
     connectToPrevious block input
     inputToBlockly workspace block "observation" observation
     setField block "timeout" (show timeout)
     inputToBlockly workspace block "contract1" contract1
     inputToBlockly workspace block "contract2" contract2
   toBlockly workspace input (While observation timeout contract1 contract2) = do
-    let block = ST.run (newBlock workspace (show WhileContractType) >>= STRef.read)
+    block <- newBlock workspace (show WhileContractType)
     connectToPrevious block input
     inputToBlockly workspace block "observation" observation
     setField block "timeout" (show timeout)
     inputToBlockly workspace block "contract1" contract1
     inputToBlockly workspace block "contract2" contract2
   toBlockly workspace input (Scale v1 v2 v3 contract) = do
-    let block = ST.run (newBlock workspace (show ScaleContractType) >>= STRef.read)
+    block <- newBlock workspace (show ScaleContractType)
     connectToPrevious block input
     inputToBlockly workspace block "scale1" v1
     inputToBlockly workspace block "scale2" v2
     inputToBlockly workspace block "scale3" v3
     inputToBlockly workspace block "contract" contract
   toBlockly workspace input (Let label contract1 contract2) = do
-    let block = ST.run (newBlock workspace (show LetContractType) >>= STRef.read)
+    block <- newBlock workspace (show LetContractType)
     connectToPrevious block input
     setField block "let_label" (show label)
     inputToBlockly workspace block "contract1" contract1
     inputToBlockly workspace block "contract2" contract2
   toBlockly workspace input (Use label) = do
-    let block = ST.run (newBlock workspace (show UseContractType) >>= STRef.read)
+    block <- newBlock workspace (show UseContractType)
     connectToPrevious block input
     setField block "let_label" (show label)
 
 instance toBlocklyObservation :: ToBlockly Observation where
   toBlockly workspace input (BelowTimeout timeout) = do
-    let block = ST.run (newBlock workspace (show BelowTimeoutObservationType) >>= STRef.read)
+    block <- newBlock workspace (show BelowTimeoutObservationType)
     connectToOutput block input
     setField block "timeout" (show timeout)
   toBlockly workspace input (AndObs observation1 observation2) = do
-    let block = ST.run (newBlock workspace (show AndObservationType) >>= STRef.read)
+    block <- newBlock workspace (show AndObservationType)
     connectToOutput block input
     inputToBlockly workspace block "observation1" observation1
     inputToBlockly workspace block "observation2" observation2
   toBlockly workspace input (OrObs observation1 observation2) = do
-    let block = ST.run (newBlock workspace (show OrObservationType) >>= STRef.read)
+    block <- newBlock workspace (show OrObservationType)
     connectToOutput block input
     inputToBlockly workspace block "observation1" observation1
     inputToBlockly workspace block "observation2" observation2
   toBlockly workspace input (NotObs observation) = do
-    let block = ST.run (newBlock workspace (show NotObservationType) >>= STRef.read)
+    block <- newBlock workspace (show NotObservationType)
     connectToOutput block input
     inputToBlockly workspace block "observation" observation
   toBlockly workspace input (ChoseThis choiceId choice) = do
-    let block = ST.run (newBlock workspace (show ChoseThisObservationType) >>= STRef.read)
+    block <- newBlock workspace (show ChoseThisObservationType)
     connectToOutput block input
     setField block "choice_id" (show (unwrap choiceId).choice)
     setField block "person_id" (show (unwrap choiceId).person)
     setField block "choice" (show choice)
   toBlockly workspace input (ChoseSomething choiceId) = do
-    let block = ST.run (newBlock workspace (show ChoseObservationType) >>= STRef.read)
+    block <- newBlock workspace (show ChoseObservationType)
     connectToOutput block input
     setField block "choice_id" (show (unwrap choiceId).choice)
     setField block "person_id" (show (unwrap choiceId).person)
   toBlockly workspace input (ValueGE v1 v2) = do
-    let block = ST.run (newBlock workspace (show ValueGEObservationType) >>= STRef.read)
+    block <- newBlock workspace (show ValueGEObservationType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input (ValueGT v1 v2) = do
-    let block = ST.run (newBlock workspace (show ValueGObservationType) >>= STRef.read)
+    block <- newBlock workspace (show ValueGObservationType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input (ValueLT v1 v2) = do
-    let block = ST.run (newBlock workspace (show ValueLObservationType) >>= STRef.read)
+    block <- newBlock workspace (show ValueLObservationType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input (ValueLE v1 v2) = do
-    let block = ST.run (newBlock workspace (show ValueLEObservationType) >>= STRef.read)
+    block <- newBlock workspace (show ValueLEObservationType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input (ValueEQ v1 v2) = do
-    let block = ST.run (newBlock workspace (show ValueEqObservationType) >>= STRef.read)
+    block <- newBlock workspace (show ValueEqObservationType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input TrueObs = do
-    let block = ST.run (newBlock workspace (show TrueObservationType) >>= STRef.read)
+    block <- newBlock workspace (show TrueObservationType)
     connectToOutput block input
   toBlockly workspace input FalseObs = do
-    let block = ST.run (newBlock workspace (show FalseObservationType) >>= STRef.read)
+    block <- newBlock workspace (show FalseObservationType)
     connectToOutput block input
 
 instance toBlocklyValue :: ToBlockly Value where
   toBlockly workspace input CurrentBlock = do
-    let block = ST.run (newBlock workspace (show CurrentBlockType) >>= STRef.read)
+    block <- newBlock workspace (show CurrentBlockType)
     connectToOutput block input
   toBlockly workspace input (Committed v) = do
-    let block = ST.run (newBlock workspace (show CommittedValueType) >>= STRef.read)
+    block <- newBlock workspace (show CommittedValueType)
     connectToOutput block input
     setField block "commit_id" (show v)
   toBlockly workspace input (Constant v) = do
-    let block = ST.run (newBlock workspace (show ConstValueType) >>= STRef.read)
+    block <- newBlock workspace (show ConstValueType)
     connectToOutput block input
     setField block "constant" (show v)
   toBlockly workspace input (NegValue v) = do
-    let block = ST.run (newBlock workspace (show NegValueType) >>= STRef.read)
+    block <- newBlock workspace (show NegValueType)
     connectToOutput block input
     inputToBlockly workspace block "value" v
   toBlockly workspace input (AddValue v1 v2) = do
-    let block = ST.run (newBlock workspace (show AddValueType) >>= STRef.read)
+    block <- newBlock workspace (show AddValueType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input (SubValue v1 v2) = do
-    let block = ST.run (newBlock workspace (show SubValueType) >>= STRef.read)
+    block <- newBlock workspace (show SubValueType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input (MulValue v1 v2) = do
-    let block = ST.run (newBlock workspace (show MulValueType) >>= STRef.read)
+    block <- newBlock workspace (show MulValueType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
   toBlockly workspace input (DivValue v1 v2 v3) = do
-    let block = ST.run (newBlock workspace (show DivValueType) >>= STRef.read)
+    block <- newBlock workspace (show DivValueType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
     inputToBlockly workspace block "value3" v3
   toBlockly workspace input (ModValue v1 v2 v3) = do
-    let block = ST.run (newBlock workspace (show ModValueType) >>= STRef.read)
+    block <- newBlock workspace (show ModValueType)
     connectToOutput block input
     inputToBlockly workspace block "value1" v1
     inputToBlockly workspace block "value2" v2
     inputToBlockly workspace block "value3" v3
   toBlockly workspace input (ValueFromChoice v1 v2) = do
-    let block = ST.run (newBlock workspace (show FromChoiceValueType) >>= STRef.read)
+    block <- newBlock workspace (show FromChoiceValueType)
     connectToOutput block input
     setField block "choice_id" (show (unwrap v1).choice)
     setField block "person_id" (show (unwrap v1).person)
     inputToBlockly workspace block "value" v2
   toBlockly workspace input (ValueFromOracle v1 v2) = do
-    let block = ST.run (newBlock workspace (show FromOracleValueType) >>= STRef.read)
+    block <- newBlock workspace (show FromOracleValueType)
     connectToOutput block input
     setField block "oracle_id" (show (unwrap v1))
     inputToBlockly workspace block "value" v2
