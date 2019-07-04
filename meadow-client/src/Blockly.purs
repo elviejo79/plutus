@@ -1,16 +1,15 @@
 module Blockly where
 
 import Prelude
-
 import Blockly.Types (Block, Blockly, BlocklyState, Workspace)
 import Control.Monad.ST.Internal (ST, STRef)
-import Data.Function.Uncurried (Fn2, Fn4, Fn1, runFn1, runFn2, runFn4)
+import Data.Function.Uncurried (Fn1, Fn2, Fn3, Fn4, runFn1, runFn2, runFn3, runFn4)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Symbol (SProxy(..))
 import Data.Traversable (class Foldable, traverse_)
 import Effect (Effect)
-import Effect.Uncurried (EffectFn1, EffectFn2, EffectFn3, runEffectFn1, runEffectFn2, runEffectFn3)
+import Effect.Uncurried (EffectFn1, EffectFn3, runEffectFn1, runEffectFn3)
 import Foreign (Foreign)
 import Global (infinity)
 import Halogen.HTML (AttrName(..), ElemName(..), Node)
@@ -62,9 +61,9 @@ foreign import createBlocklyInstance_ :: Effect Blockly
 
 foreign import createWorkspace_ :: EffectFn3 Blockly String WorkspaceConfig Workspace
 
-foreign import resizeBlockly_ :: EffectFn1 BlocklyState Unit
+foreign import resizeBlockly_ :: forall r. Fn2 Blockly (STRef r Workspace) (ST r Unit)
 
-foreign import addBlockType_ :: EffectFn3 BlocklyState String Foreign Unit
+foreign import addBlockType_ :: forall r. Fn3 (STRef r Blockly) String Foreign (ST r Unit)
 
 foreign import initializeWorkspace_ :: forall r. Fn2 Blockly (STRef r Workspace) (ST r Unit)
 
@@ -115,21 +114,19 @@ createBlocklyInstance workspaceElementId toolboxElementId = do
       }
     }
 
-resize :: Maybe BlocklyState -> Effect Unit
-resize (Just blocklyState) = runEffectFn1 resizeBlockly_ blocklyState
+resize :: forall r. Blockly -> STRef r Workspace -> ST r Unit
+resize = runFn2 resizeBlockly_
 
-resize Nothing = pure unit
-
-addBlockType :: BlocklyState -> BlockDefinition -> Effect Unit
-addBlockType blocklyState (BlockDefinition fields) =
+addBlockType :: forall r. STRef r Blockly -> BlockDefinition -> ST r Unit
+addBlockType blocklyRef (BlockDefinition fields) =
   let
     definition = JSON.write $ Record.delete type_ fields
 
     type' = fields.type
   in
-    runEffectFn3 addBlockType_ blocklyState type' definition
+    runFn3 addBlockType_ blocklyRef type' definition
 
-addBlockTypes :: forall f. Foldable f => BlocklyState -> f BlockDefinition -> Effect Unit
+addBlockTypes :: forall f r. Foldable f => STRef r Blockly -> f BlockDefinition -> ST r Unit
 addBlockTypes blocklyState = traverse_ (addBlockType blocklyState)
 
 initializeWorkspace :: forall r. Blockly -> STRef r Workspace -> ST r Unit

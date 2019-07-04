@@ -16,11 +16,12 @@ exports.createWorkspace_ = function (blockly, workspaceDiv, config) {
 
 }
 
-exports.resizeBlockly_ = function (blocklyState) {
-    var Blockly = blocklyState.blockly;
-    var workspace = blocklyState.workspace;
-    Blockly.svgResize(workspace);
-    workspace.render();
+exports.resizeBlockly_ = function (blockly, workspaceRef) {
+    return function () {
+        var workspace = workspaceRef.value;
+        blockly.svgResize(workspace);
+        workspace.render();
+    }
 }
 
 function removeUndefinedFields(obj) {
@@ -39,17 +40,19 @@ function removeEmptyArrayFields(obj) {
     }
 }
 
-exports.addBlockType_ = function (blocklyState, name, block) {
-    var Blockly = blocklyState.blockly;
-    // we really don't want to be mutating the input object, it is not supposed to be state
-    var clone = JSON.parse(JSON.stringify(block));
-    removeUndefinedFields(clone);
-    removeEmptyArrayFields(clone);
-    Blockly.Blocks[name] = {
-        init: function () {
-            this.jsonInit(clone);
+exports.addBlockType_ = function (blocklyRef, name, block) {
+    return function () {
+        var blockly = blocklyRef.value;
+        // we really don't want to be mutating the input object, it is not supposed to be state
+        var clone = JSON.parse(JSON.stringify(block));
+        removeUndefinedFields(clone);
+        removeEmptyArrayFields(clone);
+        blockly.Blocks[name] = {
+            init: function () {
+                this.jsonInit(clone);
+            }
         }
-    }
+    };
 }
 
 exports.initializeWorkspace_ = function (blockly, workspaceRef) {

@@ -72,17 +72,30 @@ blockly blockDefinitions =
 eval :: forall m. MonadEffect m => BlocklyQuery ~> DSL m
 eval (Inject blockDefinitions next) = do
   blocklyState <- liftEffect $ Blockly.createBlocklyInstance (ElementId "blocklyWorkspace") (ElementId "blocklyToolbox")
-  liftEffect $ Blockly.addBlockTypes blocklyState blockDefinitions
-  let _ = ST.run (do
-                    workspaceRef <- STRef.new blocklyState.workspace
-                    Blockly.initializeWorkspace blocklyState.blockly workspaceRef)
-  let generator = buildGenerator blocklyState
+  let
+    _ =
+      ST.run
+        ( do
+          blocklyRef <- STRef.new blocklyState.blockly
+          workspaceRef <- STRef.new blocklyState.workspace
+          Blockly.addBlockTypes blocklyRef blockDefinitions
+          Blockly.initializeWorkspace blocklyState.blockly workspaceRef
+        )
+    generator = buildGenerator blocklyState
   _ <- modify _ {blocklyState = Just blocklyState, generator = Just generator}
   pure next
 
 eval (Resize next) = do
-  state <- get
-  _ <- liftEffect $ Blockly.resize state.blocklyState
+  mState <- use _blocklyState
+  case mState of
+    Just state ->
+      pure
+        $ ST.run
+            ( do
+              workspaceRef <- STRef.new state.workspace
+              Blockly.resize state.blockly workspaceRef
+            )
+    Nothing -> pure unit
   pure next
 
 eval (SetData _ next) = pure next
@@ -92,11 +105,14 @@ eval (GetCode next) = runMaybeT f *> pure next
   f = do
     blocklyState <- MaybeT $ use _blocklyState
     generator <- MaybeT $ use _generator
-    let code = workspaceToCode blocklyState generator
-        result = runParser code (parens Parser.contract <|> Parser.contract)
-    lift $ case result of
-        Left e -> log (show e)
-        Right contract -> raise $ CurrentCode (show (pretty contract))
+    let
+      code = workspaceToCode blocklyState generator
+
+      result = runParser code (parens Parser.contract <|> Parser.contract)
+    lift
+      $ case result of
+          Left e -> log (show e)
+          Right contract -> raise $ CurrentCode (show (pretty contract))
 
 eval (SetCode code next) = do
   {blocklyState} <- get
@@ -106,7 +122,7 @@ eval (SetCode code next) = do
       Left _ -> Null
   case blocklyState of
     Nothing -> pure unit
-    Just bs -> pure $ ST.run (buildBlocks bs contract)
+    Just bs -> pure $ ST.run (buildBlocks newBlock bs contract)
   pure next
 
 blocklyRef :: RefLabel

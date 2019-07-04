@@ -1,16 +1,19 @@
 module Marlowe.BlocklyTests where
 
 import Prelude
+
 import Blockly (getBlockById)
 import Blockly as Blockly
 import Blockly.Generator (Generator, getInputWithName, inputList, workspaceToCode)
-import Blockly.Headless (newBlock)
 import Blockly.Headless as Headless
 import Blockly.Types (BlocklyState)
 import Control.Alt ((<|>))
 import Control.Lazy (class Lazy)
 import Control.Monad.Gen (class MonadGen)
 import Control.Monad.Rec.Class (class MonadRec)
+import Control.Monad.ST (ST)
+import Control.Monad.ST as ST
+import Control.Monad.ST.Ref as STRef
 import Data.Either (Either(..))
 import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
@@ -39,7 +42,9 @@ quickCheckGen = quickCheck
 mkTestState :: forall m. MonadEffect m => m {blocklyState :: BlocklyState, generator :: Generator}
 mkTestState = do
   blocklyState <- liftEffect $ Headless.createBlocklyInstance
-  liftEffect $ Blockly.addBlockTypes blocklyState blockDefinitions
+  let _ = ST.run (do
+                      blocklyRef <- STRef.new blocklyState.blockly
+                      Blockly.addBlockTypes blocklyRef blockDefinitions)
   liftEffect $ Headless.initializeWorkspace blocklyState
   let generator = buildGenerator blocklyState
   pure {blocklyState: blocklyState, generator: generator}
@@ -58,19 +63,20 @@ c2b2c = do
 runContract :: Contract -> Effect (Either ParseError Contract)
 runContract contract = do
   state <- liftEffect mkTestState
-  liftEffect $ buildBlocks state.blocklyState contract
+  pure $ ST.run (buildBlocks state.blocklyState contract)
   let code = workspaceToCode state.blocklyState state.generator
   let
     result = runParser code (parens Parser.contract <|> Parser.contract)
   pure result
 
-buildBlocks :: BlocklyState -> Contract -> Effect Unit
+buildBlocks :: forall r. BlocklyState -> Contract -> ST r Unit
 buildBlocks bs contract = do
+  workspaceRef <- STRef.new bs.workspace
   let
     mContract = getBlockById bs.workspace "root_contract"
   rootBlock <- case mContract of
-    Nothing -> newBlock bs.workspace "BaseContractType"
+    Nothing -> Headless.newBlock workspaceRef "BaseContractType" >>= STRef.read
     Just block -> pure block
   let
     inputs = inputList rootBlock
-  for_ (getInputWithName inputs "BaseContractType") \input -> toBlockly newBlock bs.workspace input contract
+  for_ (getInputWithName inputs "BaseContractType") \input -> toBlockly Headless.newBlock workspaceRef input contract

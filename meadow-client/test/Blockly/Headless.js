@@ -16,7 +16,8 @@ exports.initializeWorkspace_ = function(blockly, workspace) {
     workspace.getAllBlocks()[0].setDeletable(false);
 }
 
-exports.newBlock_ = function (workspace, name) {
+exports.newBlock_ = function (mkRef, workspaceRef, name) {
+    var workspace = workspaceRef.value;
     var block = workspace.newBlock(name);
-    return block;
+    return mkRef(block);
 }

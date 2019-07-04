@@ -10,12 +10,12 @@ import Data.Array as Array
 import Data.Either (Either(..))
 import Data.Function.Uncurried (Fn1, Fn2, Fn3, Fn4, Fn5, Fn6, runFn1, runFn2, runFn3, runFn4, runFn5, runFn6)
 import Data.Maybe (Maybe)
-import Effect (Effect)
-import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
 import Partial.Unsafe (unsafePartial)
 
 type GeneratorFunction
   = Block -> Either String String
+
+type NewBlockFunction r = (STRef r Workspace) -> String -> ST r (STRef r Block)
 
 type NewSTRefFunction = (forall a r. a -> ST r (STRef r a))
 
