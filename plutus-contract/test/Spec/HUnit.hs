@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TemplateHaskell  #-}
 -- | Testing contracts with HUnit
 module Spec.HUnit(
       module X
@@ -16,43 +15,31 @@ module Spec.HUnit(
     , checkPredicate
     ) where
 
-import           Control.Lens                         (at, makeLenses, to, use, view, (<>=), (^.))
-import           Control.Monad                        (void)
-import           Control.Monad.State                  (StateT, execStateT, gets, runStateT)
-import           Control.Monad.Trans.Class            (MonadTrans (..))
+import           Control.Lens                         (at, to, (^.))
+import           Control.Monad.State                  (execStateT, runStateT)
 import           Control.Monad.Writer
-import qualified Data.Aeson                           as Aeson
-import           Data.Bifunctor                       (Bifunctor (..))
-import           Data.Foldable                        (toList, traverse_)
+import           Data.Foldable                        (toList)
 import           Data.Functor.Contravariant           (Predicate (..))
 import qualified Data.Map                             as Map
 import           Data.Maybe                           (fromMaybe)
-import           Data.Sequence                        (Seq)
-import qualified Data.Sequence                        as Seq
 import qualified Data.Set                             as Set
 import qualified Test.Tasty.HUnit                     as HUnit
 import           Test.Tasty.Providers                 (TestTree)
 
 import           Language.Plutus.Contract.Contract    as Con
-import           Language.Plutus.Contract.Event       (Event)
-import qualified Language.Plutus.Contract.Event       as Event
 import           Language.Plutus.Contract.Hooks       (Hooks (..))
 import qualified Language.Plutus.Contract.Hooks       as Hooks
 import           Language.Plutus.Contract.Transaction (UnbalancedTx)
-import qualified Language.Plutus.Contract.Wallet      as Wallet
 
-import           Ledger.Ada                           (Ada)
 import qualified Ledger.Ada                           as Ada
-import qualified Ledger.AddressMap                    as AM
 import           Ledger.Slot                          (Slot)
-import           Ledger.Tx                            (Address, Tx)
+import           Ledger.Tx                            (Address)
 import           Ledger.Value                         (Value)
 import qualified Ledger.Value                         as V
-import           Wallet.Emulator                      (AssertionError, EmulatorAction, EmulatorState, MonadEmulator,
-                                                       Wallet)
+import           Wallet.Emulator                      (EmulatorAction, Wallet)
 import qualified Wallet.Emulator                      as EM
 
-import Language.Plutus.Contract.Emulator as X
+import           Language.Plutus.Contract.Emulator    as X
 
 type TracePredicate a = InitialDistribution -> Predicate (ContractTraceResult a)
 
