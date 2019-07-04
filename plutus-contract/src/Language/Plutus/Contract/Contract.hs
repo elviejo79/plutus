@@ -13,6 +13,7 @@ module Language.Plutus.Contract.Contract(
     -- * Feed events to the contract and look at the outputs
     , runContract
     , runConM
+    , execContract
     ) where
 
 import           Control.Applicative              (Alternative (empty))
@@ -60,4 +61,7 @@ runConM
     -> ContractPrompt Maybe a
     -> m (Maybe a)
 runConM evts con = evalStateT (runContract con) evts
-    
+
+-- | Run a contract until it gets stuck, then return the hooks
+execContract :: Alternative f => [Event] -> ContractPrompt f a -> Hooks
+execContract evts con = execWriter (runStateT (runContract con) evts)

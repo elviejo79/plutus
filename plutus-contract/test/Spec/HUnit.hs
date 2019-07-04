@@ -15,8 +15,8 @@ module Spec.HUnit(
     , checkPredicate
     ) where
 
-import           Control.Lens                         (at, to, (^.))
-import           Control.Monad.State                  (execStateT, runStateT)
+import           Control.Lens                         (at, to, (^.), folded)
+import           Control.Monad.State                  (runStateT)
 import           Control.Monad.Writer
 import           Data.Foldable                        (toList)
 import           Data.Functor.Contravariant           (Predicate (..))
@@ -43,11 +43,11 @@ import           Language.Plutus.Contract.Emulator    as X
 
 type TracePredicate a = InitialDistribution -> Predicate (ContractTraceResult a)
 
-hooks :: ContractTraceResult a -> Hooks
-hooks rs =
-    let evts = rs ^. ctrTraceState . ctsEvents . to toList
+hooks :: Wallet -> ContractTraceResult a -> Hooks
+hooks w rs =
+    let evts = rs ^. ctrTraceState . ctsEvents . at w . folded . to toList
         con  = rs ^. ctrTraceState . ctsContract
-    in execWriter (execStateT (runContract con) evts)
+    in execContract evts con
 
 not :: TracePredicate a -> TracePredicate a
 not p a = Predicate $ \b -> Prelude.not (getPredicate (p a) b)
@@ -67,28 +67,28 @@ checkPredicate nm con predicate action =
                 let dt = ContractTraceResult ms st in
                 HUnit.assertBool nm (getPredicate (predicate defaultDist) dt)
 
-endpointAvailable :: String -> TracePredicate a
-endpointAvailable nm _ = Predicate $ \r ->
-    nm `Set.member` Hooks.activeEndpoints (hooks r)
+endpointAvailable :: Wallet -> String -> TracePredicate a
+endpointAvailable w nm _ = Predicate $ \r ->
+    nm `Set.member` Hooks.activeEndpoints (hooks w r)
 
-interestingAddress :: Address -> TracePredicate a
-interestingAddress addr _ = Predicate $ \r ->
-        addr `Set.member` Hooks.addresses (hooks r)
+interestingAddress :: Wallet -> Address -> TracePredicate a
+interestingAddress w addr _ = Predicate $ \r ->
+        addr `Set.member` Hooks.addresses (hooks w r)
 
-tx :: (UnbalancedTx -> Bool) -> TracePredicate a
-tx flt _ = Predicate $ \r ->
-    any flt (Hooks.transactions (hooks r))
+tx :: Wallet -> (UnbalancedTx -> Bool) -> TracePredicate a
+tx w flt _ = Predicate $ \r ->
+    any flt (Hooks.transactions (hooks w r))
 
-waitingForSlot :: Slot -> TracePredicate a
-waitingForSlot sl _ = Predicate $ \r ->
-    Just sl == Hooks.nextSlot (hooks r)
+waitingForSlot :: Wallet -> Slot -> TracePredicate a
+waitingForSlot w sl _ = Predicate $ \r ->
+    Just sl == Hooks.nextSlot (hooks w r)
 
-anyTx :: TracePredicate a
-anyTx = tx (const True)
+anyTx :: Wallet -> TracePredicate a
+anyTx w = tx w (const True)
 
-assertResult :: (Maybe a -> Bool) -> TracePredicate a
-assertResult p _ = Predicate $ \rs ->
-    let evts = rs ^. ctrTraceState . ctsEvents . to toList
+assertResult :: Wallet -> (Maybe a -> Bool) -> TracePredicate a
+assertResult w p _ = Predicate $ \rs ->
+    let evts = rs ^. ctrTraceState . ctsEvents . at w . folded . to toList
         con  = rs ^. ctrTraceState . ctsContract
         result = fst (runWriter (runStateT (runContract con) evts))
     in p (fst result)

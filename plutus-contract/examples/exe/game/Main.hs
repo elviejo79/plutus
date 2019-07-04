@@ -6,7 +6,7 @@ import qualified Language.Plutus.Contract.App as App
 
 main :: IO ()
 main = App.runWithTraces game
-          [ ("lock", lockTrace)
-          , ("guess", guessTrace)]
+          [ ("lock", (App.Wallet 1, lockTrace))
+          , ("guess", (App.Wallet 2, guessTrace)) ]
 
 --curl -XPOST -d @out.json -H "Content-Type: application/json" localhost:8080/run

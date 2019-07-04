@@ -30,6 +30,7 @@ import           Language.Plutus.Contract.Emulator
 import           Language.Plutus.Contract.Transaction          (unbalancedTx)
 import           Language.PlutusTx.Coordination.Contracts.Game (gameAddress, gameDataScript, gameRedeemerScript,
                                                                 gameValidator)
+import           Wallet.Emulator                               (MonadEmulator)
 import qualified Wallet.Emulator                               as EM
 
 import qualified Ledger                                        as L
@@ -77,8 +78,16 @@ lock = do
 game :: PlutusContract m => m ()
 game = guess <|> lock
 
-lockTrace :: ContractTrace EM.EmulatorAction a ()
-lockTrace = callEndpoint (EM.Wallet 1) "lock" (LockParams "secret" 10)
+lockTrace
+    :: ( MonadEmulator m )
+    => ContractTrace m a ()
+lockTrace =
+    let w1 = EM.Wallet 1 in
+    callEndpoint w1 "lock" (LockParams "secret" 10) >> handleBlockchainEvents w1
 
-guessTrace :: ContractTrace EM.EmulatorAction a ()
-guessTrace = lockTrace >> callEndpoint (EM.Wallet 2) "guess" (GuessParams "secret")
+guessTrace
+    :: ( MonadEmulator m )
+    => ContractTrace m a ()
+guessTrace =
+    let w2 = EM.Wallet 2 in
+    lockTrace >> callEndpoint w2 "guess" (GuessParams "secret") >> handleBlockchainEvents w2

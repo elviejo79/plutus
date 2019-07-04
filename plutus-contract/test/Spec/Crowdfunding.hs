@@ -13,19 +13,19 @@ tests :: TestTree
 tests = testGroup "crowdfunding" [
     checkPredicate "Expose 'contribute' and 'scheduleCollection' endpoints"
         crowdfunding
-        (endpointAvailable "contribute" <> endpointAvailable "schedule collection")
+        (endpointAvailable w1 "contribute" <> endpointAvailable w1 "schedule collection")
         $ pure ()
 
     , checkPredicate "'contribute' endpoint submits a transaction"
         crowdfunding
-        (interestingAddress (campaignAddress theCampaign) <> walletFundsChange w1 (Ada.adaValueOf (-10)))
+        (interestingAddress w1 (campaignAddress theCampaign) <> walletFundsChange w1 (Ada.adaValueOf (-10)))
         $ let key = EM.walletPubKey w1
               contribution = Ada.adaValueOf 10
-          in callEndpoint w1 "contribute" (key, contribution)
+          in callEndpoint w1 "contribute" (key, contribution) >> handleBlockchainEvents w1
 
     , checkPredicate "'scheduleCollection' starts watching campaign address and waits for deadline"
         crowdfunding
-        (waitingForSlot (campaignDeadline theCampaign) <> interestingAddress (campaignAddress theCampaign))
+        (waitingForSlot w1 (campaignDeadline theCampaign) <> interestingAddress w1 (campaignAddress theCampaign))
         $ callEndpoint w1 "schedule collection" ()
     ]
 
