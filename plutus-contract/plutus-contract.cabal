@@ -42,6 +42,7 @@ library
     import: lang
     exposed-modules:
         Language.Plutus.Contract
+        Language.Plutus.Contract.App
         Language.Plutus.Contract.Class
         Language.Plutus.Contract.Contract
         Language.Plutus.Contract.Emulator
@@ -70,7 +71,8 @@ library
         semigroupoids -any,
         profunctors -any,
         prompt -any,
-        transformers -any
+        transformers -any,
+        warp -any
 
 library examples
     import: lang
@@ -98,10 +100,7 @@ executable contract-guessing-game
         plutus-contract -any,
         examples
     build-depends:
-        base >=4.7 && <5,
-        warp -any,
-        aeson -any,
-        bytestring -any
+        base >=4.7 && <5
 
 executable contract-crowdfunding
     default-language: Haskell2010
@@ -111,8 +110,7 @@ executable contract-crowdfunding
         plutus-contract -any,
         examples
     build-depends:
-        base >=4.7 && <5,
-        warp -any
+        base >=4.7 && <5
 
 test-suite plutus-contract-test
     import: lang
